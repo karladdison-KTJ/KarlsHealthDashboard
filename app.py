@@ -121,9 +121,35 @@ def load_env_file(path):
 
 LOCAL_ENV = load_env_file(ENV_FILE)
 
-WITHINGS_CLIENT_ID = os.getenv("WITHINGS_CLIENT_ID") or LOCAL_ENV.get("WITHINGS_CLIENT_ID", "")
-WITHINGS_CLIENT_SECRET = os.getenv("WITHINGS_CLIENT_SECRET") or LOCAL_ENV.get("WITHINGS_CLIENT_SECRET", "")
-WITHINGS_REDIRECT_URI = os.getenv("WITHINGS_REDIRECT_URI") or LOCAL_ENV.get("WITHINGS_REDIRECT_URI", "http://localhost:8501")
+
+def get_secret_or_env(key, default=""):
+    """
+    Read settings from Streamlit Cloud Secrets, environment variables,
+    or the local .env file, in that order.
+    """
+    try:
+        if key in st.secrets:
+            value = st.secrets.get(key)
+
+            if value is not None:
+                return str(value)
+    except Exception:
+        pass
+
+    return os.getenv(key) or LOCAL_ENV.get(key, default)
+
+
+def using_streamlit_cloud():
+    try:
+        return bool(st.secrets)
+    except Exception:
+        return False
+
+
+WITHINGS_CLIENT_ID = get_secret_or_env("WITHINGS_CLIENT_ID", "")
+WITHINGS_CLIENT_SECRET = get_secret_or_env("WITHINGS_CLIENT_SECRET", "")
+WITHINGS_REDIRECT_URI = get_secret_or_env("WITHINGS_REDIRECT_URI", "http://localhost:8501")
+WITHINGS_TOKENS_JSON = get_secret_or_env("WITHINGS_TOKENS_JSON", "")
 
 
 # ============================================================
@@ -462,25 +488,95 @@ def health_notes_line_chart(df, y_col, title, chart_key):
 # Withings OAuth and API helpers
 # ============================================================
 
-def load_tokens():
-    if not os.path.exists(TOKEN_FILE):
-        return None
+def load_tokens_from_secrets():
+    """
+    Load Withings tokens from Streamlit Cloud Secrets.
 
+    Recommended Streamlit Secrets entry:
+
+    WITHINGS_TOKENS_JSON = '''
+    {
+      "access_token": "...",
+      "refresh_token": "...",
+      "userid": "...",
+      "scope": "user.info,user.metrics,user.activity",
+      "token_type": "Bearer",
+      "expires_in": 10800
+    }
+    '''
+    """
+    raw_tokens = WITHINGS_TOKENS_JSON
+
+    if raw_tokens:
+        try:
+            parsed = json.loads(str(raw_tokens))
+
+            if isinstance(parsed, dict) and parsed.get("refresh_token"):
+                return parsed
+        except Exception:
+            return None
+
+    # Optional fallback for individual secret keys, useful if preferred later.
     try:
-        with open(TOKEN_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+        access_token = st.secrets.get("WITHINGS_ACCESS_TOKEN", "")
+        refresh_token = st.secrets.get("WITHINGS_REFRESH_TOKEN", "")
+
+        if refresh_token:
+            tokens = {
+                "access_token": str(access_token),
+                "refresh_token": str(refresh_token),
+                "scope": str(st.secrets.get("WITHINGS_SCOPE", WITHINGS_SCOPE)),
+                "token_type": str(st.secrets.get("WITHINGS_TOKEN_TYPE", "Bearer")),
+                "expires_in": safe_int(st.secrets.get("WITHINGS_EXPIRES_IN", 10800), 10800),
+            }
+
+            user_id = st.secrets.get("WITHINGS_USERID", "")
+
+            if user_id:
+                tokens["userid"] = str(user_id)
+
+            return tokens
     except Exception:
-        return None
+        pass
+
+    return None
+
+
+def load_tokens():
+    if os.path.exists(TOKEN_FILE):
+        try:
+            with open(TOKEN_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+
+    return load_tokens_from_secrets()
 
 
 def save_tokens(tokens):
-    with open(TOKEN_FILE, "w", encoding="utf-8") as f:
-        json.dump(tokens, f, indent=2)
+    # Store in the app session so the latest token can be used immediately.
+    try:
+        st.session_state["latest_withings_tokens"] = tokens
+    except Exception:
+        pass
+
+    # Also write a local token file. On Streamlit Cloud this file may disappear
+    # after restart, so WITHINGS_TOKENS_JSON in Secrets is the long-term backup.
+    try:
+        with open(TOKEN_FILE, "w", encoding="utf-8") as f:
+            json.dump(tokens, f, indent=2)
+    except Exception:
+        pass
 
 
 def delete_tokens():
     if os.path.exists(TOKEN_FILE):
         os.remove(TOKEN_FILE)
+
+    try:
+        st.session_state.pop("latest_withings_tokens", None)
+    except Exception:
+        pass
 
 
 def build_withings_auth_url():
@@ -497,7 +593,7 @@ def build_withings_auth_url():
 
 def exchange_code_for_tokens(code):
     if not WITHINGS_CLIENT_ID or not WITHINGS_CLIENT_SECRET:
-        return False, "Missing WITHINGS_CLIENT_ID or WITHINGS_CLIENT_SECRET in .env file."
+        return False, "Missing WITHINGS_CLIENT_ID or WITHINGS_CLIENT_SECRET in .env / Streamlit Secrets."
 
     data = {
         "action": "requesttoken",
@@ -533,7 +629,7 @@ def refresh_access_token_once(tokens):
         return tokens, "Refresh token missing."
 
     if not WITHINGS_CLIENT_ID or not WITHINGS_CLIENT_SECRET:
-        return tokens, "Missing WITHINGS_CLIENT_ID or WITHINGS_CLIENT_SECRET in .env file, cannot refresh token."
+        return tokens, "Missing WITHINGS_CLIENT_ID or WITHINGS_CLIENT_SECRET in .env / Streamlit Secrets, cannot refresh token."
 
     data = {
         "action": "requesttoken",
@@ -603,7 +699,8 @@ def withings_get_with_access_token(endpoint, params, access_token):
 
 def get_withings_status(sleep_df, activity_df, weight_df, errors, runtime_refresh_error):
     token_exists = os.path.exists(TOKEN_FILE)
-    tokens = load_tokens() if token_exists else None
+    secret_token_exists = bool(WITHINGS_TOKENS_JSON)
+    tokens = load_tokens()
 
     access_token_found = bool(tokens and tokens.get("access_token"))
     refresh_token_found = bool(tokens and tokens.get("refresh_token"))
@@ -614,10 +711,12 @@ def get_withings_status(sleep_df, activity_df, weight_df, errors, runtime_refres
     client_secret_found = bool(WITHINGS_CLIENT_SECRET)
 
     status_rows = [
-        {"Check": ".env file", "Status": "Found" if env_exists else "Missing"},
+        {"Check": ".env file", "Status": "Found" if env_exists else "Missing / not needed in cloud"},
+        {"Check": "Streamlit Secrets", "Status": "Available" if using_streamlit_cloud() else "Not detected locally"},
         {"Check": "Client ID", "Status": "Found" if client_id_found else "Missing"},
         {"Check": "Client Secret", "Status": "Found" if client_secret_found else "Missing"},
         {"Check": "Token file", "Status": "Found" if token_exists else "Missing"},
+        {"Check": "Token backup in Secrets", "Status": "Found" if secret_token_exists else "Missing"},
         {"Check": "Access token", "Status": "Found" if access_token_found else "Missing"},
         {"Check": "Refresh token", "Status": "Found" if refresh_token_found else "Missing"},
         {"Check": "Token scope", "Status": token_scope if token_scope else "No scope found"},
@@ -1581,9 +1680,29 @@ with st.sidebar:
         if st.button("Clear Withings token file", use_container_width=True):
             delete_tokens()
             st.cache_data.clear()
-            st.success("Withings token file cleared. Use Connect / Reconnect Withings again.")
+            st.success("Withings local token file cleared. If using Streamlit Secrets, the secret backup has not been changed.")
+
+        current_tokens_for_backup = load_tokens()
+
+        if current_tokens_for_backup and current_tokens_for_backup.get("refresh_token"):
+            with st.expander("Cloud token backup"):
+                st.caption(
+                    "For Streamlit Cloud, copy this into App settings → Secrets after a successful Withings connection. "
+                    "This helps the app reconnect after a cloud restart. Treat it like a password."
+                )
+                token_backup_text = (
+                    "WITHINGS_TOKENS_JSON = '''\n"
+                    + json.dumps(current_tokens_for_backup, indent=2)
+                    + "\n'''"
+                )
+                st.text_area(
+                    "Copy this whole block into Streamlit Secrets",
+                    token_backup_text,
+                    height=240,
+                    key="withings_token_backup_text",
+                )
     else:
-        st.warning("Add WITHINGS_CLIENT_ID and WITHINGS_CLIENT_SECRET to your .env file.")
+        st.warning("Add WITHINGS_CLIENT_ID and WITHINGS_CLIENT_SECRET to your .env file locally, or to Streamlit Secrets in the cloud.")
 
 
 # ============================================================
@@ -1892,7 +2011,7 @@ with tabs[0]:
         st.dataframe(withings_status, use_container_width=True, hide_index=True)
 
         if not WITHINGS_CLIENT_ID or not WITHINGS_CLIENT_SECRET:
-            st.warning("Missing Client ID or Client Secret in .env file.")
+            st.warning("Missing Client ID or Client Secret in .env / Streamlit Secrets.")
         elif sleep_df.empty and activity_df.empty and weight_df.empty:
             st.warning("No Withings sleep, steps or weight data has loaded. Check the API errors above.")
         elif sleep_df.empty or activity_df.empty or weight_df.empty:
