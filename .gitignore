@@ -1,0 +1,22 @@
+# Secrets and tokens
+.env
+withings_tokens.json
+.streamlit/secrets.toml
+
+# Personal health exports
+*.csv
+*.xls
+*.xlsx
+*.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Streamlit cache
+.streamlit/cache/
+
+# Windows junk
+Thumbs.db
+desktop.ini
