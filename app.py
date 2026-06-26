@@ -51,6 +51,7 @@ TOKEN_FILE = os.path.join(BASE_DIR, "withings_tokens.json")
 GOOGLE_CLIENT_SECRET_FILE = os.path.join(BASE_DIR, "google_client_secret.json")
 GOOGLE_DRIVE_TOKEN_FILE = os.path.join(BASE_DIR, "google_drive_token.json")
 GOOGLE_DRIVE_WITHINGS_FILENAME = "karls_health_dashboard_withings_tokens.json"
+GOOGLE_DRIVE_FOOD_PREFIX = "karls_health_dashboard_food__"
 GOOGLE_DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 GOALS_FILE = os.path.join(BASE_DIR, "dashboard_goals.json")
 MEDICATIONS_FILE = os.path.join(BASE_DIR, "medications.csv")
@@ -784,6 +785,183 @@ def download_json_from_google_drive(filename):
         return None, f"Google Drive download failed: {e}"
 
 
+def upload_binary_to_google_drive(filename, content_bytes, mimetype="application/octet-stream"):
+    if not google_drive_enabled():
+        return False, "Google Drive backup is disabled."
+
+    service, service_error = get_google_drive_service()
+
+    if service_error:
+        return False, service_error
+
+    try:
+        media = MediaIoBaseUpload(BytesIO(content_bytes), mimetype=mimetype, resumable=False)
+        existing_file_id = find_google_drive_file_id(service, filename)
+
+        body = {
+            "name": filename,
+            "mimeType": mimetype,
+        }
+
+        if existing_file_id:
+            service.files().update(
+                fileId=existing_file_id,
+                media_body=media,
+                fields="id, name, modifiedTime",
+            ).execute()
+        else:
+            service.files().create(
+                body=body,
+                media_body=media,
+                fields="id, name, modifiedTime",
+            ).execute()
+
+        return True, f"Uploaded {filename} to Google Drive."
+    except Exception as e:
+        return False, f"Google Drive file upload failed for {filename}: {e}"
+
+
+def download_binary_from_google_drive(filename):
+    if not google_drive_enabled():
+        return None, "Google Drive backup is disabled."
+
+    service, service_error = get_google_drive_service()
+
+    if service_error:
+        return None, service_error
+
+    try:
+        file_id = find_google_drive_file_id(service, filename)
+
+        if not file_id:
+            return None, f"No Google Drive file found called {filename}."
+
+        request = service.files().get_media(fileId=file_id)
+        file_buffer = BytesIO()
+        downloader = MediaIoBaseDownload(file_buffer, request)
+
+        done = False
+        while done is False:
+            status, done = downloader.next_chunk()
+
+        file_buffer.seek(0)
+        return file_buffer.read(), None
+    except Exception as e:
+        return None, f"Google Drive file download failed for {filename}: {e}"
+
+
+def safe_google_drive_food_filename(original_name):
+    base_name = os.path.basename(str(original_name or "food_export.xls"))
+    safe_name = "".join(c if c.isalnum() or c in ["-", "_", ".", " "] else "_" for c in base_name)
+    safe_name = safe_name.strip() or "food_export.xls"
+
+    return GOOGLE_DRIVE_FOOD_PREFIX + safe_name
+
+
+def original_food_filename_from_drive_name(drive_name):
+    name = str(drive_name or "")
+
+    if name.startswith(GOOGLE_DRIVE_FOOD_PREFIX):
+        return name[len(GOOGLE_DRIVE_FOOD_PREFIX):]
+
+    return name
+
+
+def list_google_drive_food_files():
+    if not google_drive_enabled():
+        return [], "Google Drive backup is disabled."
+
+    service, service_error = get_google_drive_service()
+
+    if service_error:
+        return [], service_error
+
+    try:
+        query = f"name contains '{GOOGLE_DRIVE_FOOD_PREFIX}' and trashed = false"
+
+        results = service.files().list(
+            q=query,
+            spaces="drive",
+            fields="files(id, name, modifiedTime, size)",
+            pageSize=100,
+            orderBy="modifiedTime desc",
+        ).execute()
+
+        return results.get("files", []), None
+    except Exception as e:
+        return [], f"Could not list Google Drive food files: {e}"
+
+
+def backup_food_file_to_google_drive(original_name, content_bytes):
+    drive_name = safe_google_drive_food_filename(original_name)
+    lower_name = str(original_name).lower()
+
+    if lower_name.endswith(".xls"):
+        mimetype = "application/vnd.ms-excel"
+    elif lower_name.endswith(".xlsx"):
+        mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    else:
+        mimetype = "application/octet-stream"
+
+    return upload_binary_to_google_drive(drive_name, content_bytes, mimetype=mimetype)
+
+
+@st.cache_data(ttl=900)
+def load_food_data_from_google_drive_cached(food_file_signature):
+    food_files, list_error = list_google_drive_food_files()
+
+    if list_error:
+        return pd.DataFrame(), [], [list_error]
+
+    if not food_files:
+        return pd.DataFrame(), [], ["No MyNetDiary files found in Google Drive yet."]
+
+    sources = []
+    messages = []
+
+    for item in food_files:
+        drive_name = item.get("name", "")
+        original_name = original_food_filename_from_drive_name(drive_name)
+
+        content_bytes, download_error = download_binary_from_google_drive(drive_name)
+
+        if download_error or content_bytes is None:
+            messages.append(download_error or f"Could not download {original_name} from Google Drive.")
+            continue
+
+        sources.append(
+            {
+                "name": original_name,
+                "path": None,
+                "bytes": content_bytes,
+            }
+        )
+
+    food_df, files_seen, parse_messages = parse_mynetdiary_sources(sources)
+
+    messages.extend(parse_messages)
+
+    return food_df, files_seen, messages
+
+
+def load_food_data_from_google_drive():
+    food_files, list_error = list_google_drive_food_files()
+
+    if list_error:
+        return pd.DataFrame(), [], [list_error]
+
+    signature = "|".join(
+        [
+            f"{item.get('name', '')}:{item.get('modifiedTime', '')}:{item.get('size', '')}"
+            for item in food_files
+        ]
+    )
+
+    return load_food_data_from_google_drive_cached(signature)
+
+
+
+
 def backup_withings_tokens_to_google_drive(tokens):
     if not tokens or not isinstance(tokens, dict):
         return False, "No Withings token data to back up."
@@ -818,8 +996,16 @@ def google_drive_status_rows():
     service, service_error = get_google_drive_service()
     backup_file_found = False
 
+    food_file_count = 0
+
     if service is not None:
         backup_file_found = bool(find_google_drive_file_id(service, GOOGLE_DRIVE_WITHINGS_FILENAME))
+
+        try:
+            food_files, food_error = list_google_drive_food_files()
+            food_file_count = len(food_files)
+        except Exception:
+            food_file_count = 0
 
     return [
         {"Check": "Google Drive backup enabled", "Status": "Yes" if google_drive_enabled() else "No"},
@@ -830,6 +1016,7 @@ def google_drive_status_rows():
         {"Check": "Google Drive token in Secrets", "Status": "Found" if secret_token_exists else "Missing"},
         {"Check": "Google Drive connection", "Status": "Working" if service is not None else service_error or "Not connected"},
         {"Check": "Withings token backup in Google Drive", "Status": "Found" if backup_file_found else "Missing"},
+        {"Check": "Saved food files in Google Drive", "Status": str(food_file_count)},
     ]
 
 
@@ -1604,20 +1791,41 @@ def load_food_data_from_uploads(uploaded_file_payloads):
 
 def load_food_data(uploaded_food_files=None):
     uploaded_payloads = []
+    upload_messages = []
 
     if uploaded_food_files:
         for uploaded_file in uploaded_food_files:
+            file_bytes = uploaded_file.getvalue()
+
             uploaded_payloads.append(
                 {
                     "name": uploaded_file.name,
-                    "bytes": uploaded_file.getvalue(),
+                    "bytes": file_bytes,
                 }
             )
 
-    if uploaded_payloads:
-        return load_food_data_from_uploads(uploaded_payloads)
+            ok, message = backup_food_file_to_google_drive(uploaded_file.name, file_bytes)
 
-    return load_food_data_from_local_files()
+            if ok:
+                upload_messages.append(message)
+            else:
+                upload_messages.append(message)
+
+    if uploaded_payloads:
+        food_df, files_seen, parse_messages = load_food_data_from_uploads(uploaded_payloads)
+        return food_df, files_seen, upload_messages + parse_messages
+
+    drive_food_df, drive_food_files, drive_food_messages = load_food_data_from_google_drive()
+
+    if not drive_food_df.empty or drive_food_files:
+        return drive_food_df, drive_food_files, drive_food_messages
+
+    local_food_df, local_food_files, local_food_messages = load_food_data_from_local_files()
+
+    if not local_food_df.empty or local_food_files:
+        return local_food_df, local_food_files, local_food_messages
+
+    return drive_food_df, drive_food_files, drive_food_messages
 
 
 def food_daily_summary(food_df):
@@ -2308,10 +2516,21 @@ with st.sidebar:
 
     if uploaded_food_files:
         st.success(f"{len(uploaded_food_files)} food file(s) uploaded for this session.")
+        st.caption("Uploaded files will also be saved to Google Drive if Google Drive is connected.")
         for uploaded_file in uploaded_food_files:
             st.caption(uploaded_file.name)
     else:
-        st.caption("No food file uploaded yet.")
+        food_drive_files, food_drive_error = list_google_drive_food_files()
+
+        if food_drive_files:
+            st.success(f"{len(food_drive_files)} saved food file(s) found in Google Drive.")
+            with st.expander("Saved MyNetDiary files"):
+                for item in food_drive_files:
+                    st.write(original_food_filename_from_drive_name(item.get("name", "")))
+        elif food_drive_error:
+            st.caption(f"Google Drive food file check: {food_drive_error}")
+        else:
+            st.caption("No food file uploaded yet and no saved food file found in Google Drive.")
 
 
 # ============================================================
