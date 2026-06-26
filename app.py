@@ -151,6 +151,7 @@ WITHINGS_CLIENT_ID = get_secret_or_env("WITHINGS_CLIENT_ID", "")
 WITHINGS_CLIENT_SECRET = get_secret_or_env("WITHINGS_CLIENT_SECRET", "")
 WITHINGS_REDIRECT_URI = get_secret_or_env("WITHINGS_REDIRECT_URI", "http://localhost:8501")
 WITHINGS_TOKENS_JSON = get_secret_or_env("WITHINGS_TOKENS_JSON", "")
+APP_USERNAME = get_secret_or_env("APP_USERNAME", "Karl")
 APP_PASSWORD = get_secret_or_env("APP_PASSWORD", "")
 
 
@@ -158,11 +159,13 @@ APP_PASSWORD = get_secret_or_env("APP_PASSWORD", "")
 # Password protection
 # ============================================================
 
-def check_dashboard_password():
+def check_dashboard_login():
     """
-    Stop the dashboard loading until the correct password is entered.
-    The password is read from Streamlit Secrets / environment / .env as APP_PASSWORD.
+    Stop the dashboard loading until the correct username and password are entered.
+    Username and password are read from Streamlit Secrets / environment / .env as
+    APP_USERNAME and APP_PASSWORD.
     """
+    username_required = bool(str(APP_USERNAME).strip())
     password_required = bool(str(APP_PASSWORD).strip())
 
     if not password_required:
@@ -171,27 +174,37 @@ def check_dashboard_password():
         )
         return
 
+    if not username_required:
+        st.warning(
+            "Dashboard username is not set. Add APP_USERNAME to Streamlit Secrets to protect this app."
+        )
+        return
+
     if st.session_state.get("dashboard_unlocked", False):
         return
 
     st.title(APP_TITLE)
-    st.caption("Private dashboard. Please enter the password to continue.")
+    st.caption("Private dashboard. Please enter your username and password to continue.")
 
-    with st.form("dashboard_password_form"):
+    with st.form("dashboard_login_form"):
+        entered_username = st.text_input("Username")
         entered_password = st.text_input("Password", type="password")
         submitted = st.form_submit_button("Unlock Dashboard")
 
     if submitted:
-        if entered_password == str(APP_PASSWORD):
+        username_ok = entered_username.strip().lower() == str(APP_USERNAME).strip().lower()
+        password_ok = entered_password == str(APP_PASSWORD)
+
+        if username_ok and password_ok:
             st.session_state["dashboard_unlocked"] = True
             st.rerun()
         else:
-            st.error("Password incorrect. Please try again.")
+            st.error("Username or password incorrect. Please try again.")
 
     st.stop()
 
 
-check_dashboard_password()
+check_dashboard_login()
 
 
 # ============================================================
