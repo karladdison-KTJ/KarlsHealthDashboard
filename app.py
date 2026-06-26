@@ -1050,28 +1050,37 @@ def load_food_data_from_google_drive_cached(food_file_signature):
     if not food_files:
         return pd.DataFrame(), [], ["No MyNetDiary files found in Google Drive yet."]
 
-    sources = []
-    messages = []
+    # Google Drive returns files ordered by modifiedTime desc,
+    # so the first file is the newest saved/uploaded MyNetDiary export.
+    newest_file = food_files[0]
 
-    for item in food_files:
-        drive_name = item.get("name", "")
-        original_name = original_food_filename_from_drive_name(drive_name)
+    drive_name = newest_file.get("name", "")
+    original_name = original_food_filename_from_drive_name(drive_name)
+    modified_time = newest_file.get("modifiedTime", "")
 
-        content_bytes, download_error = download_binary_from_google_drive(drive_name)
+    content_bytes, download_error = download_binary_from_google_drive(drive_name)
 
-        if download_error or content_bytes is None:
-            messages.append(download_error or f"Could not download {original_name} from Google Drive.")
-            continue
-
-        sources.append(
-            {
-                "name": original_name,
-                "path": None,
-                "bytes": content_bytes,
-            }
+    if download_error or content_bytes is None:
+        return (
+            pd.DataFrame(),
+            [],
+            [download_error or f"Could not download newest MyNetDiary file: {original_name} from Google Drive."],
         )
 
+    sources = [
+        {
+            "name": original_name,
+            "path": None,
+            "bytes": content_bytes,
+        }
+    ]
+
     food_df, files_seen, parse_messages = parse_mynetdiary_sources(sources)
+
+    messages = [
+        f"Using newest MyNetDiary file from Google Drive: {original_name}"
+        + (f" modified {modified_time}" if modified_time else "")
+    ]
 
     messages.extend(parse_messages)
 
@@ -1893,18 +1902,24 @@ def load_food_data_from_local_files():
     files = []
     files.extend(glob.glob(os.path.join(BASE_DIR, "MyNetDiary_Year_*.xls")))
     files.extend(glob.glob(os.path.join(BASE_DIR, "MyNetDiary_Year_*.xlsx")))
-    files = sorted(list(set(files)))
+    files = sorted(list(set(files)), key=lambda p: os.path.getmtime(p), reverse=True)
 
-    for path in files:
+    # Use only the newest local MyNetDiary export.
+    # This means you can drop a new file into the app folder without replacing the old one.
+    if files:
+        newest_path = files[0]
         sources.append(
             {
-                "name": os.path.basename(path),
-                "path": path,
+                "name": os.path.basename(newest_path),
+                "path": newest_path,
                 "bytes": None,
             }
         )
 
     food_df, files_seen, parse_messages = parse_mynetdiary_sources(sources)
+
+    if files_seen:
+        parse_messages = [f"Using newest local MyNetDiary file: {files_seen[0]}"] + parse_messages
 
     return food_df, files_seen, parse_messages
 
