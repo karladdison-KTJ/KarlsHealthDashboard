@@ -1,13 +1,20 @@
 # Secrets and tokens
 .env
-withings_tokens.json
 .streamlit/secrets.toml
+withings_tokens.json
+google_client_secret.json
+google_drive_token.json
 
-# Personal health exports
+# Personal health exports and local data
+Data/
 *.csv
 *.xls
 *.xlsx
-*.json
+MyNetDiary_Year_*.xls
+MyNetDiary_Year_*.xlsx
+
+# Local test files
+test_google_drive.py
 
 # Python cache
 __pycache__/
