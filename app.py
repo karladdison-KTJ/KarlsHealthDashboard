@@ -57,6 +57,12 @@ GOALS_FILE = os.path.join(BASE_DIR, "dashboard_goals.json")
 MEDICATIONS_FILE = os.path.join(BASE_DIR, "medications.csv")
 APPOINTMENTS_FILE = os.path.join(BASE_DIR, "appointments.csv")
 HEALTH_NOTES_FILE = os.path.join(BASE_DIR, "health_notes.csv")
+
+GOOGLE_DRIVE_GOALS_FILENAME = "karls_health_dashboard_dashboard_goals.json"
+GOOGLE_DRIVE_MEDICATIONS_FILENAME = "karls_health_dashboard_medications.csv"
+GOOGLE_DRIVE_APPOINTMENTS_FILENAME = "karls_health_dashboard_appointments.csv"
+GOOGLE_DRIVE_HEALTH_NOTES_FILENAME = "karls_health_dashboard_health_notes.csv"
+
 ENV_FILE = os.path.join(BASE_DIR, ".env")
 
 WITHINGS_AUTH_URL = "https://account.withings.com/oauth2_user/authorize2"
@@ -259,6 +265,13 @@ def safe_int(value, default=0):
 
 def load_json_file(path, default):
     if not os.path.exists(path):
+        if path == GOALS_FILE:
+            restore_local_file_from_google_drive_if_missing(
+                GOALS_FILE,
+                GOOGLE_DRIVE_GOALS_FILENAME,
+            )
+
+    if not os.path.exists(path):
         return default.copy()
 
     try:
@@ -275,6 +288,13 @@ def load_json_file(path, default):
 def save_json_file(path, data):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
+
+    if path == GOALS_FILE:
+        backup_local_file_to_google_drive(
+            GOALS_FILE,
+            GOOGLE_DRIVE_GOALS_FILENAME,
+            "application/json",
+        )
 
 
 def human_duration_from_hours(hours):
@@ -850,6 +870,120 @@ def download_binary_from_google_drive(filename):
         return None, f"Google Drive file download failed for {filename}: {e}"
 
 
+def restore_local_file_from_google_drive_if_missing(local_path, drive_filename):
+    """
+    Restore a dashboard file from Google Drive only if it is missing locally.
+    This is important for Streamlit Cloud, where local files can disappear after reboot.
+    """
+    if os.path.exists(local_path):
+        return False, "Local file already exists."
+
+    content_bytes, error = download_binary_from_google_drive(drive_filename)
+
+    if error or content_bytes is None:
+        return False, error or f"No Google Drive file found called {drive_filename}."
+
+    try:
+        with open(local_path, "wb") as f:
+            f.write(content_bytes)
+
+        return True, f"Restored {os.path.basename(local_path)} from Google Drive."
+    except Exception as e:
+        return False, f"Could not restore {os.path.basename(local_path)} locally: {e}"
+
+
+def backup_local_file_to_google_drive(local_path, drive_filename, mimetype="application/octet-stream"):
+    """
+    Back up a local dashboard file to Google Drive.
+    Used for goals, health notes, medications and appointments.
+    """
+    if not os.path.exists(local_path):
+        return False, f"Local file not found: {os.path.basename(local_path)}"
+
+    try:
+        with open(local_path, "rb") as f:
+            content_bytes = f.read()
+
+        return upload_binary_to_google_drive(drive_filename, content_bytes, mimetype=mimetype)
+    except Exception as e:
+        return False, f"Could not back up {os.path.basename(local_path)} to Google Drive: {e}"
+
+
+def backup_dashboard_editable_files_to_google_drive():
+    """
+    Back up the dashboard's small editable files to Google Drive.
+    """
+    results = []
+
+    files_to_backup = [
+        (GOALS_FILE, GOOGLE_DRIVE_GOALS_FILENAME, "application/json"),
+        (HEALTH_NOTES_FILE, GOOGLE_DRIVE_HEALTH_NOTES_FILENAME, "text/csv"),
+        (MEDICATIONS_FILE, GOOGLE_DRIVE_MEDICATIONS_FILENAME, "text/csv"),
+        (APPOINTMENTS_FILE, GOOGLE_DRIVE_APPOINTMENTS_FILENAME, "text/csv"),
+    ]
+
+    for local_path, drive_filename, mimetype in files_to_backup:
+        ok, message = backup_local_file_to_google_drive(local_path, drive_filename, mimetype)
+        results.append({"File": os.path.basename(local_path), "Saved": ok, "Message": message})
+
+    return results
+
+
+def restore_dashboard_editable_files_from_google_drive(force=False):
+    """
+    Restore small editable dashboard files from Google Drive.
+
+    If force=False, files are restored only when missing locally.
+    If force=True, Google Drive versions overwrite local files.
+    """
+    results = []
+
+    files_to_restore = [
+        (GOALS_FILE, GOOGLE_DRIVE_GOALS_FILENAME),
+        (HEALTH_NOTES_FILE, GOOGLE_DRIVE_HEALTH_NOTES_FILENAME),
+        (MEDICATIONS_FILE, GOOGLE_DRIVE_MEDICATIONS_FILENAME),
+        (APPOINTMENTS_FILE, GOOGLE_DRIVE_APPOINTMENTS_FILENAME),
+    ]
+
+    for local_path, drive_filename in files_to_restore:
+        if force and os.path.exists(local_path):
+            try:
+                os.remove(local_path)
+            except Exception:
+                pass
+
+        ok, message = restore_local_file_from_google_drive_if_missing(local_path, drive_filename)
+        results.append({"File": os.path.basename(local_path), "Restored": ok, "Message": message})
+
+    return results
+
+
+def google_drive_editable_file_status(service):
+    rows = []
+
+    files_to_check = [
+        ("Goals", GOOGLE_DRIVE_GOALS_FILENAME),
+        ("Health notes", GOOGLE_DRIVE_HEALTH_NOTES_FILENAME),
+        ("Medication list", GOOGLE_DRIVE_MEDICATIONS_FILENAME),
+        ("Appointments", GOOGLE_DRIVE_APPOINTMENTS_FILENAME),
+    ]
+
+    for label, drive_filename in files_to_check:
+        found = False
+
+        if service is not None:
+            found = bool(find_google_drive_file_id(service, drive_filename))
+
+        rows.append(
+            {
+                "Check": f"{label} backup in Google Drive",
+                "Status": "Found" if found else "Missing",
+            }
+        )
+
+    return rows
+
+
 def safe_google_drive_food_filename(original_name):
     base_name = os.path.basename(str(original_name or "food_export.xls"))
     safe_name = "".join(c if c.isalnum() or c in ["-", "_", ".", " "] else "_" for c in base_name)
@@ -1007,7 +1141,7 @@ def google_drive_status_rows():
         except Exception:
             food_file_count = 0
 
-    return [
+    rows = [
         {"Check": "Google Drive backup enabled", "Status": "Yes" if google_drive_enabled() else "No"},
         {"Check": "Google Drive packages", "Status": "Installed" if GOOGLE_DRIVE_LIBS_AVAILABLE else "Missing"},
         {"Check": "Google client secret file", "Status": "Found" if client_secret_exists else "Missing"},
@@ -1018,6 +1152,10 @@ def google_drive_status_rows():
         {"Check": "Withings token backup in Google Drive", "Status": "Found" if backup_file_found else "Missing"},
         {"Check": "Saved food files in Google Drive", "Status": str(food_file_count)},
     ]
+
+    rows.extend(google_drive_editable_file_status(service))
+
+    return rows
 
 
 def google_drive_token_backup_text():
@@ -1905,6 +2043,11 @@ def build_typical_food_day(food_df):
 # ============================================================
 
 def load_medications():
+    restore_local_file_from_google_drive_if_missing(
+        MEDICATIONS_FILE,
+        GOOGLE_DRIVE_MEDICATIONS_FILENAME,
+    )
+
     if os.path.exists(MEDICATIONS_FILE):
         try:
             return pd.read_csv(MEDICATIONS_FILE)
@@ -1913,15 +2056,22 @@ def load_medications():
 
     df = pd.DataFrame(DEFAULT_MEDICATIONS)
     df.to_csv(MEDICATIONS_FILE, index=False)
+    backup_local_file_to_google_drive(MEDICATIONS_FILE, GOOGLE_DRIVE_MEDICATIONS_FILENAME, "text/csv")
 
     return df
 
 
 def save_medications(df):
     df.to_csv(MEDICATIONS_FILE, index=False)
+    backup_local_file_to_google_drive(MEDICATIONS_FILE, GOOGLE_DRIVE_MEDICATIONS_FILENAME, "text/csv")
 
 
 def load_appointments():
+    restore_local_file_from_google_drive_if_missing(
+        APPOINTMENTS_FILE,
+        GOOGLE_DRIVE_APPOINTMENTS_FILENAME,
+    )
+
     if os.path.exists(APPOINTMENTS_FILE):
         try:
             df = pd.read_csv(APPOINTMENTS_FILE)
@@ -1935,12 +2085,14 @@ def load_appointments():
 
     df = pd.DataFrame(DEFAULT_APPOINTMENTS)
     df.to_csv(APPOINTMENTS_FILE, index=False)
+    backup_local_file_to_google_drive(APPOINTMENTS_FILE, GOOGLE_DRIVE_APPOINTMENTS_FILENAME, "text/csv")
 
     return df
 
 
 def save_appointments(df):
     df.to_csv(APPOINTMENTS_FILE, index=False)
+    backup_local_file_to_google_drive(APPOINTMENTS_FILE, GOOGLE_DRIVE_APPOINTMENTS_FILENAME, "text/csv")
 
 
 def empty_health_notes_df():
@@ -1982,17 +2134,24 @@ def clean_health_notes_df(df):
 
 
 def load_health_notes():
+    restore_local_file_from_google_drive_if_missing(
+        HEALTH_NOTES_FILE,
+        GOOGLE_DRIVE_HEALTH_NOTES_FILENAME,
+    )
+
     if os.path.exists(HEALTH_NOTES_FILE):
         try:
             df = pd.read_csv(HEALTH_NOTES_FILE)
             df = clean_health_notes_df(df)
             df.to_csv(HEALTH_NOTES_FILE, index=False)
+            backup_local_file_to_google_drive(HEALTH_NOTES_FILE, GOOGLE_DRIVE_HEALTH_NOTES_FILENAME, "text/csv")
             return df
         except Exception:
             pass
 
     df = empty_health_notes_df()
     df.to_csv(HEALTH_NOTES_FILE, index=False)
+    backup_local_file_to_google_drive(HEALTH_NOTES_FILE, GOOGLE_DRIVE_HEALTH_NOTES_FILENAME, "text/csv")
 
     return df
 
@@ -2000,6 +2159,7 @@ def load_health_notes():
 def save_health_notes(df):
     clean_df = clean_health_notes_df(df)
     clean_df.to_csv(HEALTH_NOTES_FILE, index=False)
+    backup_local_file_to_google_drive(HEALTH_NOTES_FILE, GOOGLE_DRIVE_HEALTH_NOTES_FILENAME, "text/csv")
 
 
 def add_or_update_today_health_note(existing_df, new_row):
@@ -2487,6 +2647,34 @@ with st.sidebar:
                 st.rerun()
             else:
                 st.error(restore_message)
+
+        if st.button("Back up editable dashboard files now", use_container_width=True):
+            editable_results = backup_dashboard_editable_files_to_google_drive()
+            successful = [r for r in editable_results if r.get("Saved")]
+            failed = [r for r in editable_results if not r.get("Saved")]
+
+            if successful:
+                st.success(f"Backed up {len(successful)} editable file(s) to Google Drive.")
+
+            if failed:
+                with st.expander("Editable file backup messages"):
+                    for row in editable_results:
+                        st.write(f"{row['File']}: {row['Message']}")
+
+        if st.button("Restore editable dashboard files from Google Drive", use_container_width=True):
+            restore_results = restore_dashboard_editable_files_from_google_drive(force=True)
+            restored = [r for r in restore_results if r.get("Restored")]
+
+            if restored:
+                st.success(f"Restored {len(restored)} editable file(s) from Google Drive.")
+                st.cache_data.clear()
+                st.rerun()
+            else:
+                st.info("No editable files were restored. Check the messages below.")
+
+            with st.expander("Editable file restore messages"):
+                for row in restore_results:
+                    st.write(f"{row['File']}: {row['Message']}")
 
         google_token_backup = google_drive_token_backup_text()
 
@@ -3313,7 +3501,7 @@ with tabs[6]:
 
     st.caption(
         "Track pain, brain fog, fatigue, mood, sleep quality and appointment questions. "
-        "Saved locally in health_notes.csv."
+        "Saved locally and backed up to Google Drive."
     )
 
     st.markdown("### Quick Add / Update Today")
@@ -3448,7 +3636,8 @@ with tabs[7]:
     st.subheader("Medication List")
 
     st.caption(
-        "This is a simple local medication list for appointments. "
+        "This is a simple medication list for appointments. "
+        "It is saved locally and backed up to Google Drive. "
         "Please check it against your prescription labels or clinical letters before sending it anywhere."
     )
 
@@ -3505,7 +3694,7 @@ with tabs[7]:
 with tabs[8]:
     st.subheader("Appointments")
 
-    st.caption("Use this to keep short appointment summaries and follow-up actions in one place.")
+    st.caption("Use this to keep short appointment summaries and follow-up actions in one place. Saved locally and backed up to Google Drive.")
 
     appt_df = load_appointments()
 
@@ -3562,7 +3751,7 @@ with tabs[8]:
 with tabs[9]:
     st.subheader("Goals")
 
-    st.caption("These goals are saved locally and used for the small traffic light status checks.")
+    st.caption("These goals are saved locally, backed up to Google Drive and used for the small traffic light status checks.")
 
     col1, col2, col3 = st.columns(3)
 
