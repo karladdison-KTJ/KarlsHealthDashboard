@@ -5,6 +5,22 @@ from datetime import datetime, date, timedelta
 from urllib.parse import urlencode
 from io import BytesIO
 
+try:
+    from google.auth.transport.requests import Request as GoogleAuthRequest
+    from google.oauth2.credentials import Credentials as GoogleCredentials
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    from googleapiclient.discovery import build as google_build
+    from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
+    GOOGLE_DRIVE_LIBS_AVAILABLE = True
+except Exception:
+    GoogleAuthRequest = None
+    GoogleCredentials = None
+    InstalledAppFlow = None
+    google_build = None
+    MediaIoBaseDownload = None
+    MediaIoBaseUpload = None
+    GOOGLE_DRIVE_LIBS_AVAILABLE = False
+
 import pandas as pd
 import requests
 import streamlit as st
@@ -32,6 +48,10 @@ APP_TITLE = "Karl's Health Dashboard"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 TOKEN_FILE = os.path.join(BASE_DIR, "withings_tokens.json")
+GOOGLE_CLIENT_SECRET_FILE = os.path.join(BASE_DIR, "google_client_secret.json")
+GOOGLE_DRIVE_TOKEN_FILE = os.path.join(BASE_DIR, "google_drive_token.json")
+GOOGLE_DRIVE_WITHINGS_FILENAME = "karls_health_dashboard_withings_tokens.json"
+GOOGLE_DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 GOALS_FILE = os.path.join(BASE_DIR, "dashboard_goals.json")
 MEDICATIONS_FILE = os.path.join(BASE_DIR, "medications.csv")
 APPOINTMENTS_FILE = os.path.join(BASE_DIR, "appointments.csv")
@@ -153,6 +173,9 @@ WITHINGS_REDIRECT_URI = get_secret_or_env("WITHINGS_REDIRECT_URI", "http://local
 WITHINGS_TOKENS_JSON = get_secret_or_env("WITHINGS_TOKENS_JSON", "")
 APP_USERNAME = get_secret_or_env("APP_USERNAME", "Karl")
 APP_PASSWORD = get_secret_or_env("APP_PASSWORD", "")
+GOOGLE_CLIENT_SECRET_JSON = get_secret_or_env("GOOGLE_CLIENT_SECRET_JSON", "")
+GOOGLE_DRIVE_TOKEN_JSON = get_secret_or_env("GOOGLE_DRIVE_TOKEN_JSON", "")
+GOOGLE_DRIVE_ENABLED = get_secret_or_env("GOOGLE_DRIVE_ENABLED", "1")
 
 
 # ============================================================
@@ -539,6 +562,294 @@ def health_notes_line_chart(df, y_col, title, chart_key):
     st.plotly_chart(fig, use_container_width=True, key=chart_key)
 
 
+
+
+# ============================================================
+# Google Drive token backup helpers
+# ============================================================
+
+def google_drive_enabled():
+    return str(GOOGLE_DRIVE_ENABLED).strip().lower() not in ["0", "false", "no", "off"]
+
+
+def google_drive_client_config():
+    """
+    Returns Google OAuth client config from Streamlit Secrets or local JSON file.
+    Local file expected: google_client_secret.json
+    Optional Streamlit Secret: GOOGLE_CLIENT_SECRET_JSON
+    """
+    if not GOOGLE_DRIVE_LIBS_AVAILABLE:
+        return None, "Google Drive Python packages are not installed."
+
+    raw_client_secret = str(GOOGLE_CLIENT_SECRET_JSON or "").strip()
+
+    if raw_client_secret:
+        try:
+            config = json.loads(raw_client_secret)
+            if isinstance(config, dict) and ("installed" in config or "web" in config):
+                return config, None
+            return None, "GOOGLE_CLIENT_SECRET_JSON is not a valid Google OAuth JSON object."
+        except Exception as e:
+            return None, f"Could not read GOOGLE_CLIENT_SECRET_JSON: {e}"
+
+    if os.path.exists(GOOGLE_CLIENT_SECRET_FILE):
+        try:
+            with open(GOOGLE_CLIENT_SECRET_FILE, "r", encoding="utf-8") as f:
+                config = json.load(f)
+
+            if isinstance(config, dict) and ("installed" in config or "web" in config):
+                return config, None
+
+            return None, "google_client_secret.json was found but does not look like a full Google OAuth JSON file."
+        except Exception as e:
+            return None, f"Could not read google_client_secret.json: {e}"
+
+    return None, "google_client_secret.json not found and GOOGLE_CLIENT_SECRET_JSON not set."
+
+
+def load_google_drive_credentials():
+    """
+    Load Google Drive OAuth credentials from Streamlit Secrets or local google_drive_token.json.
+    Refreshes the token if possible.
+    """
+    if not google_drive_enabled():
+        return None, "Google Drive backup is disabled."
+
+    if not GOOGLE_DRIVE_LIBS_AVAILABLE:
+        return None, "Google Drive Python packages are not installed."
+
+    creds = None
+
+    raw_token = str(GOOGLE_DRIVE_TOKEN_JSON or "").strip()
+
+    if raw_token:
+        try:
+            token_info = json.loads(raw_token)
+            creds = GoogleCredentials.from_authorized_user_info(token_info, GOOGLE_DRIVE_SCOPES)
+        except Exception as e:
+            return None, f"Could not read GOOGLE_DRIVE_TOKEN_JSON: {e}"
+
+    if creds is None and os.path.exists(GOOGLE_DRIVE_TOKEN_FILE):
+        try:
+            creds = GoogleCredentials.from_authorized_user_file(GOOGLE_DRIVE_TOKEN_FILE, GOOGLE_DRIVE_SCOPES)
+        except Exception as e:
+            return None, f"Could not read google_drive_token.json: {e}"
+
+    if creds is None:
+        return None, "Google Drive is not connected yet."
+
+    try:
+        if creds.expired and creds.refresh_token:
+            creds.refresh(GoogleAuthRequest())
+
+            try:
+                with open(GOOGLE_DRIVE_TOKEN_FILE, "w", encoding="utf-8") as token_file:
+                    token_file.write(creds.to_json())
+            except Exception:
+                pass
+
+        if not creds.valid:
+            return None, "Google Drive credentials are not valid. Reconnect Google Drive."
+
+        return creds, None
+    except Exception as e:
+        return None, f"Google Drive credential refresh failed: {e}"
+
+
+def connect_google_drive_locally():
+    """
+    Starts a local browser OAuth flow and saves google_drive_token.json.
+    This is intended for running the app on Karl's Windows computer.
+    """
+    if not GOOGLE_DRIVE_LIBS_AVAILABLE:
+        return False, "Google Drive Python packages are not installed."
+
+    config, config_error = google_drive_client_config()
+
+    if config_error:
+        return False, config_error
+
+    try:
+        flow = InstalledAppFlow.from_client_config(config, GOOGLE_DRIVE_SCOPES)
+        creds = flow.run_local_server(port=0)
+
+        with open(GOOGLE_DRIVE_TOKEN_FILE, "w", encoding="utf-8") as token_file:
+            token_file.write(creds.to_json())
+
+        return True, "Google Drive connected. google_drive_token.json has been saved locally."
+    except Exception as e:
+        return False, f"Google Drive connection failed: {e}"
+
+
+def get_google_drive_service():
+    creds, creds_error = load_google_drive_credentials()
+
+    if creds_error:
+        return None, creds_error
+
+    try:
+        service = google_build("drive", "v3", credentials=creds)
+        return service, None
+    except Exception as e:
+        return None, f"Could not build Google Drive service: {e}"
+
+
+def find_google_drive_file_id(service, filename):
+    try:
+        safe_name = str(filename).replace("'", "\\'")
+        query = f"name = '{safe_name}' and trashed = false"
+
+        results = service.files().list(
+            q=query,
+            spaces="drive",
+            fields="files(id, name, modifiedTime)",
+            pageSize=10,
+        ).execute()
+
+        files = results.get("files", [])
+
+        if not files:
+            return None
+
+        files = sorted(files, key=lambda x: x.get("modifiedTime", ""), reverse=True)
+        return files[0].get("id")
+    except Exception:
+        return None
+
+
+def upload_json_to_google_drive(filename, data):
+    if not google_drive_enabled():
+        return False, "Google Drive backup is disabled."
+
+    service, service_error = get_google_drive_service()
+
+    if service_error:
+        return False, service_error
+
+    try:
+        content = json.dumps(data, indent=2).encode("utf-8")
+        media = MediaIoBaseUpload(BytesIO(content), mimetype="application/json", resumable=False)
+
+        existing_file_id = find_google_drive_file_id(service, filename)
+
+        if existing_file_id:
+            service.files().update(
+                fileId=existing_file_id,
+                media_body=media,
+                fields="id, name, modifiedTime",
+            ).execute()
+        else:
+            service.files().create(
+                body={
+                    "name": filename,
+                    "mimeType": "application/json",
+                },
+                media_body=media,
+                fields="id, name, modifiedTime",
+            ).execute()
+
+        return True, "Uploaded to Google Drive."
+    except Exception as e:
+        return False, f"Google Drive upload failed: {e}"
+
+
+def download_json_from_google_drive(filename):
+    if not google_drive_enabled():
+        return None, "Google Drive backup is disabled."
+
+    service, service_error = get_google_drive_service()
+
+    if service_error:
+        return None, service_error
+
+    try:
+        file_id = find_google_drive_file_id(service, filename)
+
+        if not file_id:
+            return None, "No Google Drive backup file found."
+
+        request = service.files().get_media(fileId=file_id)
+        file_buffer = BytesIO()
+        downloader = MediaIoBaseDownload(file_buffer, request)
+
+        done = False
+        while done is False:
+            status, done = downloader.next_chunk()
+
+        file_buffer.seek(0)
+        data = json.loads(file_buffer.read().decode("utf-8"))
+
+        return data, None
+    except Exception as e:
+        return None, f"Google Drive download failed: {e}"
+
+
+def backup_withings_tokens_to_google_drive(tokens):
+    if not tokens or not isinstance(tokens, dict):
+        return False, "No Withings token data to back up."
+
+    return upload_json_to_google_drive(GOOGLE_DRIVE_WITHINGS_FILENAME, tokens)
+
+
+def restore_withings_tokens_from_google_drive():
+    data, error = download_json_from_google_drive(GOOGLE_DRIVE_WITHINGS_FILENAME)
+
+    if error:
+        return None, error
+
+    if isinstance(data, dict) and data.get("refresh_token"):
+        try:
+            with open(TOKEN_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+        except Exception:
+            pass
+
+        return data, "Restored Withings tokens from Google Drive."
+
+    return None, "Google Drive backup did not contain a valid Withings refresh token."
+
+
+def google_drive_status_rows():
+    token_json_exists = os.path.exists(GOOGLE_DRIVE_TOKEN_FILE)
+    client_secret_exists = os.path.exists(GOOGLE_CLIENT_SECRET_FILE)
+    secret_client_exists = bool(str(GOOGLE_CLIENT_SECRET_JSON or "").strip())
+    secret_token_exists = bool(str(GOOGLE_DRIVE_TOKEN_JSON or "").strip())
+
+    service, service_error = get_google_drive_service()
+    backup_file_found = False
+
+    if service is not None:
+        backup_file_found = bool(find_google_drive_file_id(service, GOOGLE_DRIVE_WITHINGS_FILENAME))
+
+    return [
+        {"Check": "Google Drive backup enabled", "Status": "Yes" if google_drive_enabled() else "No"},
+        {"Check": "Google Drive packages", "Status": "Installed" if GOOGLE_DRIVE_LIBS_AVAILABLE else "Missing"},
+        {"Check": "Google client secret file", "Status": "Found" if client_secret_exists else "Missing"},
+        {"Check": "Google client secret in Secrets", "Status": "Found" if secret_client_exists else "Missing"},
+        {"Check": "Google Drive token file", "Status": "Found" if token_json_exists else "Missing"},
+        {"Check": "Google Drive token in Secrets", "Status": "Found" if secret_token_exists else "Missing"},
+        {"Check": "Google Drive connection", "Status": "Working" if service is not None else service_error or "Not connected"},
+        {"Check": "Withings token backup in Google Drive", "Status": "Found" if backup_file_found else "Missing"},
+    ]
+
+
+def google_drive_token_backup_text():
+    if not os.path.exists(GOOGLE_DRIVE_TOKEN_FILE):
+        return ""
+
+    try:
+        with open(GOOGLE_DRIVE_TOKEN_FILE, "r", encoding="utf-8") as f:
+            token_data = json.load(f)
+
+        return (
+            "GOOGLE_DRIVE_TOKEN_JSON = '''\n"
+            + json.dumps(token_data, indent=2)
+            + "\n'''"
+        )
+    except Exception:
+        return ""
+
+
 # ============================================================
 # Withings OAuth and API helpers
 # ============================================================
@@ -598,6 +909,7 @@ def load_tokens_from_secrets():
 
 
 def load_tokens():
+    # 1) Local token file, fastest and best for Windows/local use.
     if os.path.exists(TOKEN_FILE):
         try:
             with open(TOKEN_FILE, "r", encoding="utf-8") as f:
@@ -605,6 +917,23 @@ def load_tokens():
         except Exception:
             pass
 
+    # 2) Google Drive backup, useful after a reboot/cloud restart if local file is missing.
+    drive_tokens, drive_message = restore_withings_tokens_from_google_drive()
+
+    if drive_tokens:
+        try:
+            st.session_state["withings_drive_restore_message"] = drive_message
+        except Exception:
+            pass
+
+        return drive_tokens
+
+    try:
+        st.session_state["withings_drive_restore_message"] = drive_message
+    except Exception:
+        pass
+
+    # 3) Streamlit Secrets fallback, still supported.
     return load_tokens_from_secrets()
 
 
@@ -615,13 +944,24 @@ def save_tokens(tokens):
     except Exception:
         pass
 
-    # Also write a local token file. On Streamlit Cloud this file may disappear
-    # after restart, so WITHINGS_TOKENS_JSON in Secrets is the long-term backup.
+    # Also write a local token file.
     try:
         with open(TOKEN_FILE, "w", encoding="utf-8") as f:
             json.dump(tokens, f, indent=2)
     except Exception:
         pass
+
+    # Back up to Google Drive so the dashboard can restore after restart/cloud refresh.
+    try:
+        ok, message = backup_withings_tokens_to_google_drive(tokens)
+        st.session_state["withings_drive_backup_message"] = message
+        st.session_state["withings_drive_backup_ok"] = ok
+    except Exception as e:
+        try:
+            st.session_state["withings_drive_backup_message"] = f"Google Drive backup failed: {e}"
+            st.session_state["withings_drive_backup_ok"] = False
+        except Exception:
+            pass
 
 
 def delete_tokens():
@@ -783,6 +1123,8 @@ def get_withings_status(sleep_df, activity_df, weight_df, errors, runtime_refres
         {"Check": "Steps API error", "Status": errors.get("activity") or "None"},
         {"Check": "Weight API error", "Status": errors.get("weight") or "None"},
     ]
+
+    status_rows.extend(google_drive_status_rows())
 
     return pd.DataFrame(status_rows)
 
@@ -1892,6 +2234,66 @@ with st.sidebar:
                 )
     else:
         st.warning("Add WITHINGS_CLIENT_ID and WITHINGS_CLIENT_SECRET to your .env file locally, or to Streamlit Secrets in the cloud.")
+
+    st.divider()
+    st.header("Google Drive Backup")
+
+    if not GOOGLE_DRIVE_LIBS_AVAILABLE:
+        st.warning("Google Drive packages are not installed.")
+    else:
+        drive_service, drive_error = get_google_drive_service()
+
+        if drive_service is not None:
+            st.success("Google Drive is connected.")
+        else:
+            st.info(drive_error or "Google Drive is not connected yet.")
+
+        if st.button("Connect Google Drive", use_container_width=True):
+            ok, message = connect_google_drive_locally()
+
+            if ok:
+                st.success(message)
+                st.rerun()
+            else:
+                st.error(message)
+
+        if st.button("Back up Withings tokens to Google Drive now", use_container_width=True):
+            tokens_for_drive_backup = load_tokens()
+
+            if tokens_for_drive_backup and tokens_for_drive_backup.get("refresh_token"):
+                ok, message = backup_withings_tokens_to_google_drive(tokens_for_drive_backup)
+
+                if ok:
+                    st.success(message)
+                else:
+                    st.error(message)
+            else:
+                st.warning("No Withings token with refresh token found yet.")
+
+        if st.button("Restore Withings tokens from Google Drive", use_container_width=True):
+            restored_tokens, restore_message = restore_withings_tokens_from_google_drive()
+
+            if restored_tokens:
+                st.success(restore_message)
+                st.cache_data.clear()
+                st.rerun()
+            else:
+                st.error(restore_message)
+
+        google_token_backup = google_drive_token_backup_text()
+
+        if google_token_backup:
+            with st.expander("Google Drive token backup for Streamlit Secrets"):
+                st.caption(
+                    "Copy this into Streamlit Cloud Secrets if you want the cloud app to access Google Drive after restarts. "
+                    "Treat it like a password."
+                )
+                st.text_area(
+                    "Copy this whole block into Streamlit Secrets",
+                    google_token_backup,
+                    height=240,
+                    key="google_drive_token_backup_text",
+                )
 
     st.divider()
     st.header("Food Data")
