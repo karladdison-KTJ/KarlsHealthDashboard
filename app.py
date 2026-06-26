@@ -3,6 +3,7 @@ import json
 import glob
 from datetime import datetime, date, timedelta
 from urllib.parse import urlencode
+from io import BytesIO
 
 import pandas as pd
 import requests
@@ -150,47 +151,6 @@ WITHINGS_CLIENT_ID = get_secret_or_env("WITHINGS_CLIENT_ID", "")
 WITHINGS_CLIENT_SECRET = get_secret_or_env("WITHINGS_CLIENT_SECRET", "")
 WITHINGS_REDIRECT_URI = get_secret_or_env("WITHINGS_REDIRECT_URI", "http://localhost:8501")
 WITHINGS_TOKENS_JSON = get_secret_or_env("WITHINGS_TOKENS_JSON", "")
-APP_PASSWORD = get_secret_or_env("APP_PASSWORD", "")
-
-
-# ============================================================
-# Password protection
-# ============================================================
-
-def check_dashboard_password():
-    """
-    Stop the dashboard loading until the correct password is entered.
-    The password is read from Streamlit Secrets / environment / .env as APP_PASSWORD.
-    """
-    password_required = bool(str(APP_PASSWORD).strip())
-
-    if not password_required:
-        st.warning(
-            "Dashboard password is not set. Add APP_PASSWORD to Streamlit Secrets to protect this app."
-        )
-        return
-
-    if st.session_state.get("dashboard_unlocked", False):
-        return
-
-    st.title(APP_TITLE)
-    st.caption("Private dashboard. Please enter the password to continue.")
-
-    with st.form("dashboard_password_form"):
-        entered_password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Unlock Dashboard")
-
-    if submitted:
-        if entered_password == str(APP_PASSWORD):
-            st.session_state["dashboard_unlocked"] = True
-            st.rerun()
-        else:
-            st.error("Password incorrect. Please try again.")
-
-    st.stop()
-
-
-check_dashboard_password()
 
 
 # ============================================================
@@ -952,19 +912,80 @@ def get_withings_sleep(start_date, end_date, access_token):
 # MyNetDiary food parser
 # ============================================================
 
-@st.cache_data(ttl=900)
-def load_food_data():
-    files = []
+def _read_excel_sheets_from_source(source_name, source_bytes=None, source_path=None):
+    """
+    Read all sheets from either a local MyNetDiary file or an uploaded Streamlit file.
+    Returns a dict of sheet_name -> raw preview dataframe.
+    """
+    try:
+        engine = "xlrd" if str(source_name).lower().endswith(".xls") else None
 
-    files.extend(glob.glob(os.path.join(BASE_DIR, "MyNetDiary_Year_*.xls")))
-    files.extend(glob.glob(os.path.join(BASE_DIR, "MyNetDiary_Year_*.xlsx")))
+        if source_bytes is not None:
+            return pd.read_excel(
+                BytesIO(source_bytes),
+                sheet_name=None,
+                header=None,
+                engine=engine,
+            )
 
-    files = sorted(list(set(files)))
+        if source_path is not None:
+            return pd.read_excel(
+                source_path,
+                sheet_name=None,
+                header=None,
+                engine=engine,
+            )
+    except Exception:
+        return {}
 
-    if not files:
-        return pd.DataFrame(), []
+    return {}
+
+
+def _read_single_excel_sheet(source_name, sheet_name, header_row, source_bytes=None, source_path=None):
+    """
+    Read one sheet from either a local MyNetDiary file or an uploaded Streamlit file.
+    """
+    try:
+        engine = "xlrd" if str(source_name).lower().endswith(".xls") else None
+
+        if source_bytes is not None:
+            return pd.read_excel(
+                BytesIO(source_bytes),
+                sheet_name=sheet_name,
+                header=header_row,
+                engine=engine,
+            )
+
+        if source_path is not None:
+            return pd.read_excel(
+                source_path,
+                sheet_name=sheet_name,
+                header=header_row,
+                engine=engine,
+            )
+    except Exception:
+        return pd.DataFrame()
+
+    return pd.DataFrame()
+
+
+def parse_mynetdiary_sources(sources):
+    """
+    Parse MyNetDiary Excel exports.
+
+    sources must be a list of dictionaries:
+    {
+        "name": "MyNetDiary_Year_2026.xls",
+        "path": "...optional local path...",
+        "bytes": b"...optional uploaded file bytes..."
+    }
+    """
+    if not sources:
+        return pd.DataFrame(), [], []
 
     all_rows = []
+    files_seen = []
+    parse_messages = []
 
     def clean_column_name(value):
         return str(value).strip().replace("\n", " ").replace("\r", " ")
@@ -1028,16 +1049,25 @@ def load_food_data():
 
         return None
 
-    for path in files:
-        try:
-            engine = "xlrd" if path.lower().endswith(".xls") else None
+    for source in sources:
+        source_name = source.get("name", "Unknown file")
+        source_path = source.get("path")
+        source_bytes = source.get("bytes")
 
-            preview_sheets = pd.read_excel(
-                path,
-                sheet_name=None,
-                header=None,
-                engine=engine,
+        files_seen.append(source_name)
+
+        try:
+            preview_sheets = _read_excel_sheets_from_source(
+                source_name=source_name,
+                source_bytes=source_bytes,
+                source_path=source_path,
             )
+
+            if not preview_sheets:
+                parse_messages.append(f"{source_name}: could not read Excel sheets.")
+                continue
+
+            file_rows_before = len(all_rows)
 
             for sheet_name, preview_df in preview_sheets.items():
                 if preview_df is None or preview_df.empty:
@@ -1045,11 +1075,12 @@ def load_food_data():
 
                 header_row = find_header_row(preview_df)
 
-                df = pd.read_excel(
-                    path,
+                df = _read_single_excel_sheet(
+                    source_name=source_name,
                     sheet_name=sheet_name,
-                    header=header_row,
-                    engine=engine,
+                    header_row=header_row,
+                    source_bytes=source_bytes,
+                    source_path=source_path,
                 )
 
                 if df is None or df.empty:
@@ -1085,7 +1116,7 @@ def load_food_data():
                 clean["sugar_g"] = pd.to_numeric(df[sugar_col], errors="coerce") if sugar_col else 0
                 clean["fluid_ml"] = pd.to_numeric(df[fluid_col], errors="coerce") if fluid_col else 0
 
-                clean["source_file"] = os.path.basename(path)
+                clean["source_file"] = source_name
                 clean["source_sheet"] = sheet_name
                 clean["detected_header_row"] = header_row
 
@@ -1103,11 +1134,15 @@ def load_food_data():
                 if not clean.empty:
                     all_rows.append(clean)
 
-        except Exception:
+            if len(all_rows) == file_rows_before:
+                parse_messages.append(f"{source_name}: file was read, but no usable food rows were found.")
+
+        except Exception as e:
+            parse_messages.append(f"{source_name}: {e}")
             continue
 
     if not all_rows:
-        return pd.DataFrame(), files
+        return pd.DataFrame(), files_seen, parse_messages
 
     final_df = pd.concat(all_rows, ignore_index=True)
 
@@ -1127,7 +1162,66 @@ def load_food_data():
 
     final_df = final_df.sort_values("date")
 
-    return final_df, files
+    return final_df, files_seen, parse_messages
+
+
+@st.cache_data(ttl=900)
+def load_food_data_from_local_files():
+    sources = []
+
+    files = []
+    files.extend(glob.glob(os.path.join(BASE_DIR, "MyNetDiary_Year_*.xls")))
+    files.extend(glob.glob(os.path.join(BASE_DIR, "MyNetDiary_Year_*.xlsx")))
+    files = sorted(list(set(files)))
+
+    for path in files:
+        sources.append(
+            {
+                "name": os.path.basename(path),
+                "path": path,
+                "bytes": None,
+            }
+        )
+
+    food_df, files_seen, parse_messages = parse_mynetdiary_sources(sources)
+
+    return food_df, files_seen, parse_messages
+
+
+@st.cache_data(ttl=900)
+def load_food_data_from_uploads(uploaded_file_payloads):
+    sources = []
+
+    for item in uploaded_file_payloads:
+        sources.append(
+            {
+                "name": item["name"],
+                "path": None,
+                "bytes": item["bytes"],
+            }
+        )
+
+    food_df, files_seen, parse_messages = parse_mynetdiary_sources(sources)
+
+    return food_df, files_seen, parse_messages
+
+
+def load_food_data(uploaded_food_files=None):
+    uploaded_payloads = []
+
+    if uploaded_food_files:
+        for uploaded_file in uploaded_food_files:
+            uploaded_payloads.append(
+                {
+                    "name": uploaded_file.name,
+                    "bytes": uploaded_file.getvalue(),
+                }
+            )
+
+    if uploaded_payloads:
+        return load_food_data_from_uploads(uploaded_payloads)
+
+    return load_food_data_from_local_files()
 
 
 def food_daily_summary(food_df):
@@ -1745,6 +1839,24 @@ with st.sidebar:
     else:
         st.warning("Add WITHINGS_CLIENT_ID and WITHINGS_CLIENT_SECRET to your .env file locally, or to Streamlit Secrets in the cloud.")
 
+    st.divider()
+    st.header("Food Data")
+
+    uploaded_food_files = st.file_uploader(
+        "Upload MyNetDiary export",
+        type=["xls", "xlsx"],
+        accept_multiple_files=True,
+        help="Upload files such as MyNetDiary_Year_2026.xls. In Streamlit Cloud this keeps food data private in your current session.",
+        key="food_file_uploader",
+    )
+
+    if uploaded_food_files:
+        st.success(f"{len(uploaded_food_files)} food file(s) uploaded for this session.")
+        for uploaded_file in uploaded_food_files:
+            st.caption(uploaded_file.name)
+    else:
+        st.caption("No food file uploaded yet.")
+
 
 # ============================================================
 # Load data
@@ -1763,7 +1875,7 @@ withings_errors = {
     "weight": weight_error,
 }
 
-food_df, food_files = load_food_data()
+food_df, food_files, food_parse_messages = load_food_data(uploaded_food_files)
 food_range = filter_by_date(food_df, main_start, main_end)
 food_daily = food_daily_summary(food_df)
 food_daily_range = filter_by_date(food_daily, main_start, main_end)
@@ -2064,10 +2176,24 @@ with tabs[0]:
 
         if food_df.empty:
             st.warning("No usable food data loaded.")
+
+            if food_files:
+                st.write("Food files found / uploaded:", ", ".join([os.path.basename(str(f)) for f in food_files]))
+
+            if food_parse_messages:
+                with st.expander("Food import messages"):
+                    for message in food_parse_messages:
+                        st.write(message)
         else:
             st.write("Food rows loaded:", len(food_df))
             st.write("Food date range:", food_df["date"].min(), "to", food_df["date"].max())
             st.write("Food days loaded:", food_df["date"].nunique())
+            st.write("Food files used:", ", ".join([os.path.basename(str(f)) for f in food_files]))
+
+            if food_parse_messages:
+                with st.expander("Food import messages"):
+                    for message in food_parse_messages:
+                        st.write(message)
 
         st.markdown("#### Health notes status")
 
@@ -2276,14 +2402,24 @@ with tabs[4]:
         )
 
         if food_files:
-            with st.expander("Food files found"):
+            with st.expander("Food files found / uploaded"):
                 for file in food_files:
-                    st.write(os.path.basename(file))
+                    st.write(os.path.basename(str(file)))
+
+        if food_parse_messages:
+            with st.expander("Food import messages"):
+                for message in food_parse_messages:
+                    st.write(message)
     else:
         if food_files:
-            with st.expander("Food files found"):
+            with st.expander("Food files found / uploaded"):
                 for file in food_files:
-                    st.write(os.path.basename(file))
+                    st.write(os.path.basename(str(file)))
+
+        if food_parse_messages:
+            with st.expander("Food import messages"):
+                for message in food_parse_messages:
+                    st.write(message)
 
         with st.expander("Food data debug"):
             food_logged_days = food_df["date"].nunique()
