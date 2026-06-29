@@ -33,12 +33,12 @@ import plotly.graph_objects as go
 
 
 # ============================================================
-# Karl's Health Dashboard
+# K Health
 # ============================================================
 
 st.set_page_config(
-    page_title="Karl's Health Dashboard",
-    page_icon="💙",
+    page_title="K Health",
+    page_icon="🩺",
     layout="wide",
 )
 
@@ -47,11 +47,14 @@ st.set_page_config(
 # Basic settings
 # ============================================================
 
-APP_TITLE = "Karl's Health Dashboard"
-APP_VERSION = "v1.3"
-APP_REVIEW_DATE = "29-06-26"
+APP_TITLE = "K Health"
+APP_VERSION = "v2.1"
+APP_REVIEW_DATE = "29-06-26 23:54"
+APP_BUILD = "20260629-2354"
+APP_DESCRIPTION = "Bringing together Withings and MyNetDiary Pro"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+K_HEALTH_ICON_FILE = os.path.join(BASE_DIR, "k_health_icon.png")
 
 TOKEN_FILE = os.path.join(BASE_DIR, "withings_tokens.json")
 GOOGLE_CLIENT_SECRET_FILE = os.path.join(BASE_DIR, "google_client_secret.json")
@@ -2941,10 +2944,68 @@ handle_withings_callback()
 # Sidebar controls
 # ============================================================
 
-st.title(APP_TITLE)
-st.caption(f"{APP_VERSION} reviewed {APP_REVIEW_DATE} · Daily health dashboard showing today, recent history, sleep, steps, food and weight.")
+# ============================================================
+# App header
+# ============================================================
+
+def render_app_header():
+    icon_exists = os.path.exists(K_HEALTH_ICON_FILE)
+
+    left, right = st.columns([0.16, 0.84])
+
+    with left:
+        if icon_exists:
+            st.image(K_HEALTH_ICON_FILE, width=58)
+        else:
+            st.markdown("<div style='font-size:2.1rem; line-height:1;'>🩺</div>", unsafe_allow_html=True)
+
+    with right:
+        st.markdown(
+            f"""
+            <div style="display:flex; align-items:center; gap:0.55rem; flex-wrap:wrap; margin-bottom:0.1rem;">
+                <div style="font-size:clamp(1.75rem, 7vw, 2.7rem); font-weight:800; line-height:0.95;">{APP_TITLE}</div>
+                <div style="
+                    background: linear-gradient(135deg, #63B892, #2F6CC4);
+                    color: white;
+                    border-radius: 999px;
+                    padding: 0.22rem 0.55rem;
+                    font-size:0.78rem;
+                    font-weight:800;
+                    letter-spacing:0.02rem;
+                ">{APP_VERSION}</div>
+            </div>
+            <div style="font-size:0.84rem; opacity:0.72; line-height:1.35;">
+                {APP_DESCRIPTION}<br>
+                Reviewed {APP_REVIEW_DATE} · Build {APP_BUILD}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+render_app_header()
 
 with st.sidebar:
+    with st.expander("ℹ️ About K Health", expanded=False):
+        if os.path.exists(K_HEALTH_ICON_FILE):
+            st.image(K_HEALTH_ICON_FILE, width=92)
+
+        st.markdown(f"### {APP_TITLE}")
+        st.markdown(f"**Version:** {APP_VERSION}")
+        st.markdown(f"**Reviewed:** {APP_REVIEW_DATE}")
+        st.markdown(f"**Build:** {APP_BUILD}")
+        st.caption(APP_DESCRIPTION)
+
+        st.markdown("**Created using:**")
+        st.markdown("- ChatGPT")
+        st.markdown("- Streamlit")
+        st.markdown("- GitHub")
+        st.markdown("- Google Drive")
+
+        st.markdown("**Data sources:**")
+        st.markdown("- Withings app/API")
+        st.markdown("- MyNetDiary Pro exports")
+
     if st.button("Lock dashboard on this device", use_container_width=True):
         st.session_state["dashboard_unlocked"] = False
         st.info("Dashboard locked on this device.")
