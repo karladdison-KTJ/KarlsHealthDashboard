@@ -736,7 +736,7 @@ def simple_bar_chart(df, x, y, title, chart_key=None):
     if chart_key is None:
         chart_key = f"bar_{title}_{x}_{y}"
 
-    st.plotly_chart(fig, use_container_width=True, key=chart_key, config={"displayModeBar": False})
+    st.plotly_chart(fig, use_container_width=True, key=chart_key)
 
 
 def simple_line_chart(df, x, y, title, chart_key=None):
@@ -750,7 +750,7 @@ def simple_line_chart(df, x, y, title, chart_key=None):
     if chart_key is None:
         chart_key = f"line_{title}_{x}_{y}"
 
-    st.plotly_chart(fig, use_container_width=True, key=chart_key, config={"displayModeBar": False})
+    st.plotly_chart(fig, use_container_width=True, key=chart_key)
 
 
 def macro_pie_chart(protein, carbs, fat, chart_key=None):
@@ -876,7 +876,7 @@ def health_notes_line_chart(df, y_col, title, chart_key):
     fig.update_yaxes(range=[0, 10])
     fig.update_layout(height=330, margin=dict(l=20, r=20, t=50, b=20))
 
-    st.plotly_chart(fig, use_container_width=True, key=chart_key, config={"displayModeBar": False})
+    st.plotly_chart(fig, use_container_width=True, key=chart_key)
 
 
 
@@ -1457,6 +1457,8 @@ def google_drive_status_rows():
         {"Check": "Withings token backup in Google Drive", "Status": "Found" if backup_file_found else "Missing"},
         {"Check": "Saved food files in Google Drive", "Status": str(food_file_count)},
     ]
+
+    rows.extend(google_drive_editable_file_status(service))
 
     return rows
 
@@ -3079,16 +3081,7 @@ def clean_food_dataframe(food_table):
 
     missing_food_mask = food_lower.isin(["", "0", "0.0", "nan", "none", "unknown food"])
     supplement_mask = meal_lower.str.contains("supplement", na=False)
-
-    # Keep supplement rows, but give unnamed supplements a readable label.
     df.loc[supplement_mask & missing_food_mask, "food"] = "Supplement"
-
-    # Remove any other rows where the exported food name is just blank/0.
-    # These are usually MyNetDiary artefacts and make the phone table messy.
-    df = df[~(missing_food_mask & ~supplement_mask)].copy()
-
-    if df.empty:
-        return df
 
     # If MyNetDiary exports water as a food row instead of a Water/Fluid column,
     # infer ml from text such as "Water 500 ml" or "Water 2 L".
@@ -3253,7 +3246,7 @@ def sleep_timeline_chart(sleep_table, title, chart_key):
     fig.update_yaxes(range=[0, 60])
     fig.update_layout(height=330, margin=dict(l=20, r=20, t=50, b=20))
 
-    st.plotly_chart(fig, use_container_width=True, key=chart_key, config={"displayModeBar": False})
+    st.plotly_chart(fig, use_container_width=True, key=chart_key)
 
 
 def daily_sleep_timing_chart(sleep_table, title, chart_key):
@@ -3313,7 +3306,7 @@ def daily_sleep_timing_chart(sleep_table, title, chart_key):
     )
     fig.update_layout(height=max(330, 34 * len(chart_df["date_label"].unique())), margin=dict(l=20, r=20, t=50, b=20))
 
-    st.plotly_chart(fig, use_container_width=True, key=chart_key, config={"displayModeBar": False})
+    st.plotly_chart(fig, use_container_width=True, key=chart_key)
 
 
 def daily_total_chart(df, value_col, title, chart_key, chart_type="bar"):
@@ -3330,7 +3323,7 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar"):
         fig = px.bar(chart_df, x="date_label", y=value_col, title=title)
 
     fig.update_layout(height=340, margin=dict(l=20, r=20, t=50, b=20))
-    st.plotly_chart(fig, use_container_width=True, key=chart_key, config={"displayModeBar": False})
+    st.plotly_chart(fig, use_container_width=True, key=chart_key)
 
 
 # ============================================================
