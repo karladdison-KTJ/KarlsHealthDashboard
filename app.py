@@ -3,6 +3,7 @@ import json
 import glob
 import hmac
 import hashlib
+import re
 from datetime import datetime, date, timedelta
 from urllib.parse import urlencode
 from io import BytesIO
@@ -753,42 +754,108 @@ def simple_line_chart(df, x, y, title, chart_key=None):
 
 
 def macro_pie_chart(protein, carbs, fat, chart_key=None):
-    values = [safe_float(protein), safe_float(carbs), safe_float(fat)]
-    labels = ["Protein", "Carbs", "Fat"]
+    protein_value = max(0.0, safe_float(protein))
+    carbs_value = max(0.0, safe_float(carbs))
+    fat_value = max(0.0, safe_float(fat))
 
-    if sum(values) <= 0:
+    total = protein_value + carbs_value + fat_value
+
+    if total <= 0:
         st.info("No macro data available.")
         return
 
-    fig = go.Figure(
-        data=[
-            go.Pie(
-                labels=labels,
-                values=values,
-                hole=0.35,
-                pull=[0.12, 0, 0],
-                marker=dict(
-                    colors=[
-                        "#D9B3FF",
-                        "#CDECCF",
-                        "#B8860B",
-                    ]
-                ),
-            )
-        ]
-    )
+    def format_grams(value):
+        if abs(value - round(value)) < 0.05:
+            return f"{int(round(value))}g"
+        return f"{value:.1f}g"
 
-    fig.update_layout(
-        title="Macro Split, Protein Highlighted",
-        height=380,
-        margin=dict(l=20, r=20, t=50, b=20),
-    )
+    def percentage_list(values):
+        raw = [v / total * 100 for v in values]
+        rounded = [int(round(v)) for v in raw]
+        diff = 100 - sum(rounded)
 
-    if chart_key is None:
-        chart_key = "macro_pie_chart"
+        if diff != 0:
+            order = sorted(range(len(raw)), key=lambda i: raw[i] - int(raw[i]), reverse=(diff > 0))
+            for i in range(abs(diff)):
+                rounded[order[i % len(order)]] += 1 if diff > 0 else -1
 
-    st.plotly_chart(fig, use_container_width=True, key=chart_key)
+        return rounded
 
+    def polar(cx, cy, radius, angle_deg):
+        import math
+
+        rad = math.radians(angle_deg)
+        x = cx + radius * math.cos(rad)
+        y = cy + radius * math.sin(rad)
+        return x, y
+
+    def sector_path(cx, cy, radius, start_angle, end_angle):
+        x1, y1 = polar(cx, cy, radius, start_angle)
+        x2, y2 = polar(cx, cy, radius, end_angle)
+        large_arc = 1 if end_angle - start_angle > 180 else 0
+        return (
+            f"M {cx:.2f} {cy:.2f} "
+            f"L {x1:.2f} {y1:.2f} "
+            f"A {radius:.2f} {radius:.2f} 0 {large_arc} 1 {x2:.2f} {y2:.2f} Z"
+        )
+
+    colors = {
+        "carbs": "#63B892",
+        "protein": "#9072D8",
+        "fat": "#DABC57",
+        "value": "#3E475B",
+    }
+
+    percentages = percentage_list([carbs_value, protein_value, fat_value])
+    carbs_pct, protein_pct, fat_pct = percentages
+
+    slices = [
+        ("carbs", carbs_value, colors["carbs"]),
+        ("protein", protein_value, colors["protein"]),
+        ("fat", fat_value, colors["fat"]),
+    ]
+
+    start_angle = -90
+    paths = []
+
+    for _, value, color in slices:
+        angle = (value / total) * 360
+        end_angle = start_angle + angle
+        paths.append(
+            f'<path d="{sector_path(150, 150, 118, start_angle, end_angle)}" fill="{color}" stroke="#F4F4F4" stroke-width="4"></path>'
+        )
+        start_angle = end_angle
+
+    svg = "".join(paths)
+
+    html = f"""
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:1.5rem; flex-wrap:wrap; margin-top:0.25rem;">
+        <div style="position:relative; width:360px; min-width:280px; height:290px;">
+            <div style="position:absolute; left:0px; top:0px; color:{colors['fat']}; font-size:2.5rem; font-weight:600; line-height:1;">{fat_pct}%</div>
+            <div style="position:absolute; left:12px; bottom:8px; color:{colors['protein']}; font-size:2.45rem; font-weight:600; line-height:1;">{protein_pct}%</div>
+            <div style="position:absolute; right:0px; top:0px; color:{colors['carbs']}; font-size:2.5rem; font-weight:600; line-height:1;">{carbs_pct}%</div>
+            <svg viewBox="0 0 300 300" style="position:absolute; left:38px; top:18px; width:235px; height:235px; overflow:visible;">
+                {svg}
+            </svg>
+        </div>
+        <div style="flex:1; min-width:240px; max-width:420px;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1rem; gap:1rem;">
+                <div style="color:{colors['carbs']}; font-size:2.2rem; font-weight:500; line-height:1.1;">T. Carbs</div>
+                <div style="color:{colors['value']}; font-size:2.0rem; font-weight:600; line-height:1.1;">{format_grams(carbs_value)}</div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1rem; gap:1rem;">
+                <div style="color:{colors['protein']}; font-size:2.2rem; font-weight:500; line-height:1.1;">Protein</div>
+                <div style="color:{colors['value']}; font-size:2.0rem; font-weight:600; line-height:1.1;">{format_grams(protein_value)}</div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; gap:1rem;">
+                <div style="color:{colors['fat']}; font-size:2.2rem; font-weight:500; line-height:1.1;">Fat</div>
+                <div style="color:{colors['value']}; font-size:2.0rem; font-weight:600; line-height:1.1;">{format_grams(fat_value)}</div>
+            </div>
+        </div>
+    </div>
+    """
+
+    st.markdown(html, unsafe_allow_html=True)
 
 def health_notes_line_chart(df, y_col, title, chart_key):
     if df is None or df.empty or y_col not in df.columns:
@@ -2057,7 +2124,8 @@ def parse_mynetdiary_sources(sources):
                 carbs_col = find_col(df.columns, ["Carbs", "Carb", "Carbohydrates", "Carbohydrate", "Total Carbohydrate", "Total Carbs", "Carbs g", "Carbs (g)"])
                 fat_col = find_col(df.columns, ["Fat", "Total Fat", "Fat g", "Fat (g)"])
                 sugar_col = find_col(df.columns, ["Sugar", "Sugars", "Sugar g", "Sugars g", "Sugar (g)", "Sugars (g)"])
-                fluid_col = find_col(df.columns, ["Water", "Fluid", "Fluids", "Water ml", "Fluid ml", "Fluids ml"])
+                fluid_col = find_col(df.columns, ["Water", "Fluid", "Fluids", "Water ml", "Fluid ml", "Fluids ml", "Water (ml)", "Fluid (ml)", "Fluids (ml)", "Water, ml", "Fluid, ml", "Fluids, ml", "Total Water", "Total Fluids", "Hydration", "Liquid", "Liquids"])
+                amount_col = find_col(df.columns, ["Amount", "Quantity", "Qty", "Serving", "Serving Size", "Servings", "Measure", "Unit", "Portion"])
 
                 if not date_col:
                     continue
@@ -2074,6 +2142,21 @@ def parse_mynetdiary_sources(sources):
                 clean["fat_g"] = pd.to_numeric(df[fat_col], errors="coerce") if fat_col else 0
                 clean["sugar_g"] = pd.to_numeric(df[sugar_col], errors="coerce") if sugar_col else 0
                 clean["fluid_ml"] = pd.to_numeric(df[fluid_col], errors="coerce") if fluid_col else 0
+
+                if amount_col:
+                    amount_text = df[amount_col].astype(str)
+                    inferred_fluid = [
+                        infer_fluid_ml_from_text(meal, food, amount)
+                        for meal, food, amount in zip(clean["meal"], clean["food"], amount_text)
+                    ]
+                else:
+                    inferred_fluid = [
+                        infer_fluid_ml_from_text(meal, food)
+                        for meal, food in zip(clean["meal"], clean["food"])
+                    ]
+
+                clean["fluid_ml"] = pd.to_numeric(clean["fluid_ml"], errors="coerce").fillna(0)
+                clean["fluid_ml"] = clean["fluid_ml"].where(clean["fluid_ml"] > 0, inferred_fluid)
 
                 clean["source_file"] = source_name
                 clean["source_sheet"] = sheet_name
@@ -2792,7 +2875,7 @@ with st.sidebar:
 
     today_start, today_end = today_date(), today_date()
 
-    st.caption(f"History: {history_start.strftime('%d %b %Y')} to {history_end.strftime('%d %b %Y')}")
+    st.caption(f"History: {dashboard_date_range_label(history_start, history_end)}")
 
     st.divider()
     st.header("Withings")
@@ -2931,6 +3014,87 @@ def fmt_number(value, decimals=0, suffix=""):
     return f"{float(value):,.{decimals}f}{suffix}"
 
 
+def fmt_water(value):
+    if value is None or pd.isna(value) or float(value) <= 0:
+        return "No data"
+
+    return fmt_number(value, suffix=" ml")
+
+
+def dashboard_date_label(value):
+    try:
+        return pd.to_datetime(value).strftime("%a %d-%m-%y")
+    except Exception:
+        return str(value or "")
+
+
+def dashboard_date_range_label(start_value, end_value):
+    return f"{dashboard_date_label(start_value)} to {dashboard_date_label(end_value)}"
+
+
+def infer_fluid_ml_from_text(*values):
+    text = " ".join([str(v) for v in values if v is not None and not pd.isna(v)]).lower()
+
+    if not any(word in text for word in ["water", "fluid", "fluids", "drink", "drinks", "ml", "litre", "liter"]):
+        return 0.0
+
+    patterns = [
+        r"(\d+(?:\.\d+)?)\s*(?:ml|millilitre|millilitres|milliliter|milliliters)\b",
+        r"(\d+(?:\.\d+)?)\s*(?:l|litre|litres|liter|liters)\b",
+    ]
+
+    ml_total = 0.0
+
+    for match in re.finditer(patterns[0], text):
+        ml_total += safe_float(match.group(1), 0)
+
+    for match in re.finditer(patterns[1], text):
+        ml_total += safe_float(match.group(1), 0) * 1000
+
+    return ml_total
+
+
+def clean_food_dataframe(food_table):
+    if food_table is None or food_table.empty:
+        return pd.DataFrame()
+
+    df = food_table.copy()
+
+    for col in ["meal", "food"]:
+        if col not in df.columns:
+            df[col] = ""
+
+        df[col] = df[col].fillna("").astype(str).str.strip()
+
+    meal_lower = df["meal"].str.lower()
+    food_lower = df["food"].str.lower()
+
+    # Do not show or count medication rows in the dashboard food totals.
+    medication_mask = meal_lower.eq("medication") | food_lower.eq("medication")
+    df = df[~medication_mask].copy()
+
+    if df.empty:
+        return df
+
+    meal_lower = df["meal"].str.lower()
+    food_lower = df["food"].str.lower()
+
+    missing_food_mask = food_lower.isin(["", "0", "0.0", "nan", "none", "unknown food"])
+    supplement_mask = meal_lower.str.contains("supplement", na=False)
+    df.loc[supplement_mask & missing_food_mask, "food"] = "Supplement"
+
+    # If MyNetDiary exports water as a food row instead of a Water/Fluid column,
+    # infer ml from text such as "Water 500 ml" or "Water 2 L".
+    if "fluid_ml" not in df.columns:
+        df["fluid_ml"] = 0
+
+    df["fluid_ml"] = pd.to_numeric(df["fluid_ml"], errors="coerce").fillna(0)
+    inferred_water = df.apply(lambda row: infer_fluid_ml_from_text(row.get("meal"), row.get("food")), axis=1)
+    df["fluid_ml"] = df["fluid_ml"].where(df["fluid_ml"] > 0, inferred_water)
+
+    return df
+
+
 def latest_value_for_metric(df, value_col, start_date=None, end_date=None):
     if df is None or df.empty or value_col not in df.columns:
         return None
@@ -2979,11 +3143,17 @@ def prepare_food_table(food_table):
     if food_table is None or food_table.empty:
         return pd.DataFrame()
 
-    display = food_table.copy()
+    display = clean_food_dataframe(food_table)
+
+    if display.empty:
+        return pd.DataFrame()
 
     for col in ["meal", "food"]:
         if col in display.columns:
-            display[col] = display[col].replace("nan", "")
+            display[col] = display[col].fillna("").astype(str).str.strip()
+
+    if "date" in display.columns:
+        display["date"] = display["date"].apply(dashboard_date_label)
 
     rename_map = {
         "date": "Date",
@@ -2991,21 +3161,17 @@ def prepare_food_table(food_table):
         "food": "Food",
         "protein_g": "Protein",
         "calories": "Calories",
-        "carbs_g": "Carbs",
-        "fat_g": "Fat",
-        "sugar_g": "Sugar",
-        "fluid_ml": "Water ml",
     }
 
-    cols = [c for c in ["date", "meal", "food", "protein_g", "calories", "carbs_g", "fat_g", "sugar_g", "fluid_ml"] if c in display.columns]
+    # Keep the food table simple: no carbs, fat, sugar or water columns.
+    cols = [c for c in ["date", "meal", "food", "protein_g", "calories"] if c in display.columns]
     display = display[cols].rename(columns=rename_map)
 
-    for col in ["Protein", "Calories", "Carbs", "Fat", "Sugar", "Water ml"]:
+    for col in ["Protein", "Calories"]:
         if col in display.columns:
             display[col] = pd.to_numeric(display[col], errors="coerce").round(0)
 
     return display
-
 
 def sleep_rows_to_hourly_minutes(sleep_table):
     """
@@ -3072,6 +3238,11 @@ def sleep_timeline_chart(sleep_table, title, chart_key):
         title=title,
         labels={"hour_label": "Time of day", "minutes_asleep": "Minutes asleep"},
     )
+    fig.update_xaxes(
+        tickmode="array",
+        tickvals=[f"{h:02d}:00" for h in range(0, 24, 4)],
+        ticktext=[f"{h:02d}:00" for h in range(0, 24, 4)],
+    )
     fig.update_yaxes(range=[0, 60])
     fig.update_layout(height=330, margin=dict(l=20, r=20, t=50, b=20))
 
@@ -3115,7 +3286,7 @@ def daily_sleep_timing_chart(sleep_table, title, chart_key):
         return
 
     chart_df["duration"] = chart_df["end_hour"] - chart_df["start_hour"]
-    chart_df["date_label"] = pd.to_datetime(chart_df["date"]).dt.strftime("%a %d %b")
+    chart_df["date_label"] = pd.to_datetime(chart_df["date"]).dt.strftime("%a %d-%m-%y")
 
     fig = px.bar(
         chart_df,
@@ -3144,7 +3315,7 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar"):
         return
 
     chart_df = df.copy().sort_values("date")
-    chart_df["date_label"] = pd.to_datetime(chart_df["date"]).dt.strftime("%a %d %b")
+    chart_df["date_label"] = pd.to_datetime(chart_df["date"]).dt.strftime("%a %d-%m-%y")
 
     if chart_type == "line":
         fig = px.line(chart_df, x="date_label", y=value_col, markers=True, title=title)
@@ -3173,6 +3344,7 @@ withings_errors = {
 }
 
 food_df, food_files, food_parse_messages = load_food_data(uploaded_food_files)
+food_df = clean_food_dataframe(food_df)
 food_daily = food_daily_summary(food_df)
 
 today_sleep = filter_by_date(sleep_df, today_start, today_end)
@@ -3231,7 +3403,7 @@ tabs = st.tabs(
 with tabs[0]:
     st.subheader("Summary of Today")
 
-    st.caption(f"Today is {today_start.strftime('%A %d %B %Y')}.")
+    st.caption(f"Today is {dashboard_date_label(today_start)}.")
 
     c1, c2, c3, c4, c5 = st.columns(5)
 
@@ -3245,7 +3417,7 @@ with tabs[0]:
         st.metric("Calories", fmt_number(today_calories))
 
     with c4:
-        st.metric("Water", fmt_number(today_water, suffix=" ml"))
+        st.metric("Water", fmt_water(today_water))
 
     with c5:
         st.metric("Weight", kg_to_st_lb(latest_weight_kg) if latest_weight_kg is not None else "No data")
@@ -3329,7 +3501,7 @@ with tabs[0]:
 with tabs[1]:
     st.subheader(f"Summary Last {selected_range_label(history_days)}")
 
-    st.caption(f"{history_start.strftime('%d %b %Y')} to {history_end.strftime('%d %b %Y')}.")
+    st.caption(dashboard_date_range_label(history_start, history_end) + ".")
 
     c1, c2, c3, c4, c5 = st.columns(5)
 
@@ -3343,7 +3515,7 @@ with tabs[1]:
         st.metric("Average Calories", fmt_number(history_avg_calories))
 
     with c4:
-        st.metric("Average Water", fmt_number(history_avg_water, suffix=" ml"))
+        st.metric("Average Water", fmt_water(history_avg_water))
 
     with c5:
         st.metric("Latest Weight", kg_to_st_lb(latest_weight_kg) if latest_weight_kg is not None else "No data")
@@ -3473,10 +3645,10 @@ with tabs[2]:
 
         st.markdown("### Sleep Table")
 
-        display_sleep = history_sleep.copy()
+        display_sleep = history_sleep.copy().sort_values("date", ascending=False)
         display_sleep["Day"] = pd.to_datetime(display_sleep["date"]).dt.strftime("%a")
+        display_sleep["date"] = display_sleep["date"].apply(dashboard_date_label)
         display_sleep["Sleep"] = display_sleep["sleep_hours"].apply(human_duration_short_from_hours)
-        display_sleep = display_sleep.sort_values("date", ascending=False)
 
         st.dataframe(
             display_sleep[["date", "Day", "Sleep", "start_time", "end_time"]],
@@ -3517,9 +3689,9 @@ with tabs[3]:
             chart_type="line",
         )
 
-        display_steps = history_activity.copy()
+        display_steps = history_activity.copy().sort_values("date", ascending=False)
         display_steps["Day"] = pd.to_datetime(display_steps["date"]).dt.strftime("%a")
-        display_steps = display_steps.sort_values("date", ascending=False)
+        display_steps["date"] = display_steps["date"].apply(dashboard_date_label)
 
         st.dataframe(
             display_steps[["date", "Day", "steps"]],
@@ -3567,7 +3739,7 @@ with tabs[4]:
             st.metric("Average Fat", fmt_number(history_avg_fat, suffix="g"))
 
         with c5:
-            st.metric("Average Water", fmt_number(history_avg_water, suffix=" ml"))
+            st.metric("Average Water", fmt_water(history_avg_water))
 
         left, right = st.columns(2)
 
@@ -3588,7 +3760,7 @@ with tabs[4]:
                 chart_key="food_breakdown_macro",
             )
 
-        if "fluid_ml" in history_food_daily.columns:
+        if "fluid_ml" in history_food_daily.columns and pd.to_numeric(history_food_daily["fluid_ml"], errors="coerce").fillna(0).sum() > 0:
             daily_total_chart(
                 history_food_daily,
                 "fluid_ml",
@@ -3596,6 +3768,8 @@ with tabs[4]:
                 "food_breakdown_water",
                 chart_type="bar",
             )
+        else:
+            st.info("No water data found in the MyNetDiary export for this range.")
 
         st.divider()
 
@@ -3652,11 +3826,11 @@ with tabs[5]:
             chart_type="line",
         )
 
-        display_weight = history_weight.copy()
+        display_weight = history_weight.copy().sort_values("date", ascending=False)
         display_weight["Day"] = pd.to_datetime(display_weight["date"]).dt.strftime("%a")
+        display_weight["date"] = display_weight["date"].apply(dashboard_date_label)
         display_weight["kg"] = display_weight["weight_kg"].round(2)
         display_weight["stone_lb"] = display_weight["weight_kg"].apply(kg_to_st_lb)
-        display_weight = display_weight.sort_values("date", ascending=False)
 
         st.markdown("### Weight Table")
 
