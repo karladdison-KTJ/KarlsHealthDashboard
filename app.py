@@ -314,7 +314,8 @@ def remember_cookie_reader_script():
 
 def remember_cookie_writer_script(token):
     """
-    Save the remember-this-device cookie and reload the app.
+    Save the remember-this-device cookie without reloading the page.
+    Reloading immediately after login can create a login loop on Streamlit Cloud.
     """
     cookie_name = json.dumps(DASHBOARD_REMEMBER_COOKIE)
     cookie_value = json.dumps(token)
@@ -335,15 +336,7 @@ def remember_cookie_writer_script(token):
                     '; Path=/' +
                     '; SameSite=Lax' +
                     (window.location.protocol === 'https:' ? '; Secure' : '');
-
-                const parentUrl = new URL(window.parent.location.href);
-                parentUrl.searchParams.delete('_kh_remember_token');
-                parentUrl.searchParams.delete('_kh_cookie_checked');
-
-                window.parent.location.replace(parentUrl.toString());
-            }} catch (e) {{
-                window.parent.location.reload();
-            }}
+            }} catch (e) {{}}
         }})();
         </script>
         """,
@@ -454,11 +447,10 @@ def check_dashboard_login():
                 token = dashboard_remember_token()
 
                 if token:
-                    st.success("Login saved on this device.")
                     remember_cookie_writer_script(token)
-                    st.stop()
+                    st.success("Login saved on this device.")
 
-            st.rerun()
+            return
         else:
             st.error("Username or password incorrect. Please try again.")
 
