@@ -1,6 +1,8 @@
 import os
 import json
 import glob
+import hmac
+import hashlib
 from datetime import datetime, date, timedelta
 from urllib.parse import urlencode
 from io import BytesIO
@@ -24,6 +26,7 @@ except Exception:
 import pandas as pd
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -180,6 +183,18 @@ WITHINGS_REDIRECT_URI = get_secret_or_env("WITHINGS_REDIRECT_URI", "http://local
 WITHINGS_TOKENS_JSON = get_secret_or_env("WITHINGS_TOKENS_JSON", "")
 APP_USERNAME = get_secret_or_env("APP_USERNAME", "Karl")
 APP_PASSWORD = get_secret_or_env("APP_PASSWORD", "")
+DASHBOARD_COOKIE_KEY = get_secret_or_env("DASHBOARD_COOKIE_KEY", get_secret_or_env("APP_COOKIE_KEY", ""))
+DASHBOARD_REMEMBER_COOKIE = get_secret_or_env("DASHBOARD_REMEMBER_COOKIE", "karls_health_dashboard_remember")
+DASHBOARD_REMEMBER_DAYS_RAW = get_secret_or_env("DASHBOARD_REMEMBER_DAYS", "30")
+
+try:
+    DASHBOARD_REMEMBER_DAYS = int(str(DASHBOARD_REMEMBER_DAYS_RAW).strip())
+except Exception:
+    DASHBOARD_REMEMBER_DAYS = 30
+
+if DASHBOARD_REMEMBER_DAYS < 1:
+    DASHBOARD_REMEMBER_DAYS = 30
+
 GOOGLE_CLIENT_SECRET_JSON = get_secret_or_env("GOOGLE_CLIENT_SECRET_JSON", "")
 GOOGLE_DRIVE_TOKEN_JSON = get_secret_or_env("GOOGLE_DRIVE_TOKEN_JSON", "")
 GOOGLE_DRIVE_ENABLED = get_secret_or_env("GOOGLE_DRIVE_ENABLED", "1")
@@ -189,11 +204,211 @@ GOOGLE_DRIVE_ENABLED = get_secret_or_env("GOOGLE_DRIVE_ENABLED", "1")
 # Password protection
 # ============================================================
 
+def dashboard_cookie_signing_key():
+    """
+    A private key used to sign the remember-this-device cookie.
+    Best option: set DASHBOARD_COOKIE_KEY in Streamlit Secrets.
+    Fallback: APP_PASSWORD, so existing installs still work.
+    """
+    key = str(DASHBOARD_COOKIE_KEY or "").strip()
+
+    if key:
+        return key
+
+    return str(APP_PASSWORD or "").strip()
+
+
+def dashboard_remember_token():
+    """
+    Create a stable signed token for this dashboard login.
+    If the password or cookie key changes, old remembered devices stop working.
+    """
+    key = dashboard_cookie_signing_key()
+
+    if not key or not APP_USERNAME or not APP_PASSWORD:
+        return ""
+
+    message = f"{APP_TITLE}|{APP_USERNAME}|{APP_PASSWORD}|remember-device-v1"
+    return hmac.new(
+        key.encode("utf-8"),
+        message.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def get_query_param_value(name):
+    try:
+        value = st.query_params.get(name, "")
+    except Exception:
+        return ""
+
+    if isinstance(value, list):
+        return value[0] if value else ""
+
+    return value or ""
+
+
+def remove_login_query_params():
+    """
+    Remove only the temporary login helper query params.
+    Do not clear the whole URL, because Withings OAuth uses its own code params.
+    """
+    try:
+        for key in ["_kh_remember_token", "_kh_cookie_checked"]:
+            if key in st.query_params:
+                del st.query_params[key]
+    except Exception:
+        pass
+
+
+def remember_cookie_reader_script():
+    """
+    On iPhone/Safari, read our remember cookie and pass it back to Streamlit
+    through a temporary query parameter. The app removes it after checking.
+    """
+    cookie_name = json.dumps(DASHBOARD_REMEMBER_COOKIE)
+
+    components.html(
+        f"""
+        <script>
+        (function() {{
+            const cookieName = {cookie_name};
+
+            function getCookie(name) {{
+                const parts = document.cookie.split(';').map(function(item) {{
+                    return item.trim();
+                }});
+
+                for (const part of parts) {{
+                    if (part.startsWith(name + '=')) {{
+                        return decodeURIComponent(part.substring(name.length + 1));
+                    }}
+                }}
+
+                return '';
+            }}
+
+            try {{
+                const parentUrl = new URL(window.parent.location.href);
+                const alreadyChecked = parentUrl.searchParams.get('_kh_cookie_checked');
+
+                if (alreadyChecked !== '1') {{
+                    const token = getCookie(cookieName);
+
+                    parentUrl.searchParams.set('_kh_cookie_checked', '1');
+
+                    if (token) {{
+                        parentUrl.searchParams.set('_kh_remember_token', token);
+                    }}
+
+                    window.parent.location.replace(parentUrl.toString());
+                }}
+            }} catch (e) {{}}
+        }})();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+
+
+def remember_cookie_writer_script(token):
+    """
+    Save the remember-this-device cookie and reload the app.
+    """
+    cookie_name = json.dumps(DASHBOARD_REMEMBER_COOKIE)
+    cookie_value = json.dumps(token)
+    max_age_seconds = int(DASHBOARD_REMEMBER_DAYS) * 24 * 60 * 60
+
+    components.html(
+        f"""
+        <script>
+        (function() {{
+            try {{
+                const cookieName = {cookie_name};
+                const cookieValue = encodeURIComponent({cookie_value});
+                const maxAge = {max_age_seconds};
+
+                document.cookie =
+                    cookieName + '=' + cookieValue +
+                    '; Max-Age=' + maxAge +
+                    '; Path=/' +
+                    '; SameSite=Lax' +
+                    (window.location.protocol === 'https:' ? '; Secure' : '');
+
+                const parentUrl = new URL(window.parent.location.href);
+                parentUrl.searchParams.delete('_kh_remember_token');
+                parentUrl.searchParams.delete('_kh_cookie_checked');
+
+                window.parent.location.replace(parentUrl.toString());
+            }} catch (e) {{
+                window.parent.location.reload();
+            }}
+        }})();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+
+
+def remember_cookie_clear_script():
+    """
+    Clear the remember-this-device cookie and reload the app.
+    """
+    cookie_name = json.dumps(DASHBOARD_REMEMBER_COOKIE)
+
+    components.html(
+        f"""
+        <script>
+        (function() {{
+            try {{
+                const cookieName = {cookie_name};
+
+                document.cookie =
+                    cookieName + '=;' +
+                    ' Max-Age=0;' +
+                    ' Path=/;' +
+                    ' SameSite=Lax' +
+                    (window.location.protocol === 'https:' ? '; Secure' : '');
+
+                const parentUrl = new URL(window.parent.location.href);
+                parentUrl.searchParams.delete('_kh_remember_token');
+                parentUrl.searchParams.delete('_kh_cookie_checked');
+
+                window.parent.location.replace(parentUrl.toString());
+            }} catch (e) {{
+                window.parent.location.reload();
+            }}
+        }})();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+
+
+def check_remembered_device():
+    expected_token = dashboard_remember_token()
+    supplied_token = get_query_param_value("_kh_remember_token")
+
+    if expected_token and supplied_token and hmac.compare_digest(supplied_token, expected_token):
+        st.session_state["dashboard_unlocked"] = True
+        remove_login_query_params()
+        st.rerun()
+
+    remember_cookie_reader_script()
+
+
 def check_dashboard_login():
     """
     Stop the dashboard loading until the correct username and password are entered.
     Username and password are read from Streamlit Secrets / environment / .env as
     APP_USERNAME and APP_PASSWORD.
+
+    The optional "Remember this device" checkbox saves a signed browser cookie.
+    This makes iPhone/Safari much less annoying because it can skip the login page
+    after the first successful login.
     """
     username_required = bool(str(APP_USERNAME).strip())
     password_required = bool(str(APP_PASSWORD).strip())
@@ -213,12 +428,19 @@ def check_dashboard_login():
     if st.session_state.get("dashboard_unlocked", False):
         return
 
+    check_remembered_device()
+
     st.title(APP_TITLE)
     st.caption("Private dashboard. Please enter your username and password to continue.")
 
     with st.form("dashboard_login_form"):
         entered_username = st.text_input("Username")
         entered_password = st.text_input("Password", type="password")
+        remember_device = st.checkbox(
+            f"Remember this device for {DASHBOARD_REMEMBER_DAYS} days",
+            value=True,
+            help="Good for your own iPhone or PC. Do not tick this on a shared device.",
+        )
         submitted = st.form_submit_button("Unlock Dashboard")
 
     if submitted:
@@ -227,6 +449,15 @@ def check_dashboard_login():
 
         if username_ok and password_ok:
             st.session_state["dashboard_unlocked"] = True
+
+            if remember_device:
+                token = dashboard_remember_token()
+
+                if token:
+                    st.success("Login saved on this device.")
+                    remember_cookie_writer_script(token)
+                    st.stop()
+
             st.rerun()
         else:
             st.error("Username or password incorrect. Please try again.")
@@ -235,7 +466,6 @@ def check_dashboard_login():
 
 
 check_dashboard_login()
-
 
 # ============================================================
 # General helpers
@@ -2535,6 +2765,12 @@ st.caption("Sleep, steps, weight, food, hospital summaries, medication, appointm
 goals = load_json_file(GOALS_FILE, DEFAULT_GOALS)
 
 with st.sidebar:
+    if st.button("Lock dashboard on this device", use_container_width=True):
+        st.session_state["dashboard_unlocked"] = False
+        st.info("Dashboard locked on this device.")
+        remember_cookie_clear_script()
+        st.stop()
+
     st.header("Dashboard Range")
 
     main_range_options = {
