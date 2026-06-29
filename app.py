@@ -2875,7 +2875,7 @@ with st.sidebar:
 
     today_start, today_end = today_date(), today_date()
 
-    st.caption(f"History: {dashboard_date_label(history_start)} to {dashboard_date_label(history_end)}")
+    st.caption(f"History: {pd.to_datetime(history_start).strftime('%a %d-%m-%y') } to {pd.to_datetime(history_end).strftime('%a %d-%m-%y') }")
 
     st.divider()
     st.header("Withings")
@@ -3839,4 +3839,5 @@ with tabs[5]:
             use_container_width=True,
             hide_index=True,
         )
+
 
