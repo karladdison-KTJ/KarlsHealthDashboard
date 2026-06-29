@@ -7,6 +7,7 @@ import re
 from datetime import datetime, date, timedelta
 from urllib.parse import urlencode
 from io import BytesIO
+from html import escape as html_escape
 
 try:
     from google.auth.transport.requests import Request as GoogleAuthRequest
@@ -37,7 +38,7 @@ import plotly.graph_objects as go
 # ============================================================
 
 st.set_page_config(
-    page_title="K Health",
+    page_title="Karl's Health Dashboard",
     page_icon="🩺",
     layout="wide",
 )
@@ -47,10 +48,12 @@ st.set_page_config(
 # Basic settings
 # ============================================================
 
-APP_TITLE = "K Health"
-APP_VERSION = "v2.1"
-APP_REVIEW_DATE = "29-06-26 23:54"
-APP_BUILD = "20260629-2354"
+APP_TITLE = "Karl's Health Dashboard"
+APP_LOGIN_ID = "K Health"
+APP_VERSION = "v2.2"
+APP_REVIEW_DATE = "30-06-26"
+APP_REVIEW_DISPLAY = "Reviewed Tue 30 Jun 2026"
+APP_BUILD = "20260630-0015"
 APP_DESCRIPTION = "Bringing together Withings and MyNetDiary Pro"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -234,7 +237,7 @@ def dashboard_remember_token():
     if not key or not APP_USERNAME or not APP_PASSWORD:
         return ""
 
-    message = f"{APP_TITLE}|{APP_USERNAME}|{APP_PASSWORD}|remember-device-v1"
+    message = f"{APP_LOGIN_ID}|{APP_USERNAME}|{APP_PASSWORD}|remember-device-v1"
     return hmac.new(
         key.encode("utf-8"),
         message.encode("utf-8"),
@@ -535,6 +538,117 @@ st.markdown(
         /* Hide Streamlit heading anchor/link icons to keep the iPhone view cleaner. */
         a[href^="#"] {
             display: none !important;
+        }
+
+
+
+        .kh-card {
+            border: 1px solid rgba(128,128,128,0.18);
+            border-radius: 18px;
+            padding: 1rem;
+            background: rgba(255,255,255,0.70);
+            box-shadow: 0 8px 28px rgba(20, 40, 80, 0.05);
+            margin-bottom: 0.85rem;
+        }
+
+        .kh-health-score {
+            border: 1px solid rgba(35, 166, 96, 0.24);
+            background: linear-gradient(135deg, rgba(35,166,96,0.10), rgba(47,108,196,0.05));
+        }
+
+        .kh-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.8rem;
+            margin: 0.85rem 0 1rem 0;
+        }
+
+        .kh-kpi {
+            border-radius: 18px;
+            padding: 0.95rem;
+            border: 1px solid rgba(128,128,128,0.18);
+            background: rgba(255,255,255,0.72);
+            min-height: 138px;
+        }
+
+        .kh-kpi-title {
+            font-size: 0.95rem;
+            font-weight: 750;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .kh-kpi-value {
+            font-size: clamp(1.75rem, 7vw, 2.55rem);
+            line-height: 1.0;
+            font-weight: 800;
+            margin-bottom: 0.45rem;
+        }
+
+        .kh-kpi-sub {
+            font-size: 0.82rem;
+            opacity: 0.78;
+            margin-bottom: 0.45rem;
+        }
+
+        .kh-progress {
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(128,128,128,0.18);
+            overflow: hidden;
+            margin: 0.45rem 0;
+        }
+
+        .kh-progress-fill {
+            height: 100%;
+            border-radius: 999px;
+        }
+
+        .kh-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            border-radius: 999px;
+            padding: 0.28rem 0.55rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin: 0.2rem 0.25rem 0.2rem 0;
+            background: rgba(128,128,128,0.10);
+        }
+
+        .kh-food-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 0.72rem 0;
+            border-bottom: 1px solid rgba(128,128,128,0.14);
+        }
+
+        .kh-food-row:last-child {
+            border-bottom: 0;
+        }
+
+        .kh-muted {
+            opacity: 0.72;
+        }
+
+        @media (max-width: 900px) {
+            .kh-kpi-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 520px) {
+            .kh-kpi-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .kh-kpi {
+                min-height: 116px;
+            }
         }
 
         @media (max-width: 700px) {
@@ -2955,32 +3069,33 @@ def render_app_header():
 
     with left:
         if icon_exists:
-            st.image(K_HEALTH_ICON_FILE, width=58)
+            st.image(K_HEALTH_ICON_FILE, width=66)
         else:
-            st.markdown("<div style='font-size:2.1rem; line-height:1;'>🩺</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size:2.3rem; line-height:1;'>🩺</div>", unsafe_allow_html=True)
 
     with right:
         st.markdown(
             f"""
             <div style="display:flex; align-items:center; gap:0.55rem; flex-wrap:wrap; margin-bottom:0.1rem;">
-                <div style="font-size:clamp(1.75rem, 7vw, 2.7rem); font-weight:800; line-height:0.95;">{APP_TITLE}</div>
+                <div style="font-size:clamp(1.75rem, 6.6vw, 2.7rem); font-weight:850; line-height:0.98;">{APP_TITLE}</div>
                 <div style="
                     background: linear-gradient(135deg, #63B892, #2F6CC4);
                     color: white;
                     border-radius: 999px;
                     padding: 0.22rem 0.55rem;
                     font-size:0.78rem;
-                    font-weight:800;
+                    font-weight:850;
                     letter-spacing:0.02rem;
                 ">{APP_VERSION}</div>
             </div>
-            <div style="font-size:0.84rem; opacity:0.72; line-height:1.35;">
+            <div style="font-size:0.88rem; opacity:0.74; line-height:1.35;">
                 {APP_DESCRIPTION}<br>
-                Reviewed {APP_REVIEW_DATE} · Build {APP_BUILD}
+                🗓️ {APP_REVIEW_DISPLAY} · Build {APP_BUILD}
             </div>
             """,
             unsafe_allow_html=True,
         )
+
 
 
 render_app_header()
@@ -3180,6 +3295,364 @@ def fmt_water(value):
         return "No data"
 
     return fmt_number(value, suffix=" ml")
+
+
+def css_color(name):
+    palette = {
+        "sleep": "#D95B5B",
+        "steps": "#22A65F",
+        "food": "#F28A2E",
+        "calories": "#F28A2E",
+        "protein": "#9072D8",
+        "weight": "#2F6CC4",
+        "good": "#22A65F",
+        "amber": "#DABC57",
+        "bad": "#D95B5B",
+        "muted": "#7B8497",
+        "text": "#303548",
+    }
+    return palette.get(name, palette["text"])
+
+
+def friendly_axis_label(value_col):
+    labels = {
+        "sleep_hours": "Sleep (hours)",
+        "steps": "Steps",
+        "calories": "Calories",
+        "protein_g": "Protein (g)",
+        "carbs_g": "Carbs (g)",
+        "fat_g": "Fat (g)",
+        "sugar_g": "Sugar (g)",
+        "fluid_ml": "Fluid (ml)",
+        "weight_lb": "Weight (lb)",
+        "minutes_asleep": "Minutes asleep",
+    }
+    return labels.get(value_col, str(value_col).replace("_", " ").title())
+
+
+def metric_color_key(value_col):
+    if value_col == "sleep_hours":
+        return "sleep"
+    if value_col == "steps":
+        return "steps"
+    if value_col in ["calories", "protein_g", "carbs_g", "fat_g"]:
+        return "food"
+    if value_col == "weight_lb":
+        return "weight"
+    return "text"
+
+
+def progress_percent(value, target, higher_is_better=True):
+    if value is None or pd.isna(value) or target is None or pd.isna(target) or float(target) <= 0:
+        return 0
+
+    value = max(0.0, float(value))
+    target = float(target)
+
+    if higher_is_better:
+        return max(0, min(100, int(round((value / target) * 100))))
+
+    if value <= target:
+        return 100
+
+    over_ratio = max(0.0, (value - target) / target)
+    return max(0, min(100, int(round(100 - (over_ratio * 100)))))
+
+
+def goal_status_text(value, target, unit="", higher_is_better=True, below_word="to go", above_word="over"):
+    if value is None or pd.isna(value) or target is None or pd.isna(target):
+        return "No data"
+
+    diff = float(target) - float(value)
+
+    if higher_is_better:
+        if diff <= 0:
+            return "✓ Goal met"
+        return f"{diff:,.0f}{unit} {below_word}"
+
+    if diff >= 0:
+        return f"{diff:,.0f}{unit} remaining"
+
+    return f"{abs(diff):,.0f}{unit} {above_word}"
+
+
+def health_score_component(value, target, higher_is_better=True):
+    if value is None or pd.isna(value) or target is None or pd.isna(target) or float(target) <= 0:
+        return 0
+
+    value = max(0.0, float(value))
+    target = float(target)
+
+    if higher_is_better:
+        return max(0, min(20, round(20 * (value / target))))
+
+    if value <= target:
+        return 20
+
+    over = (value - target) / target
+    return max(0, min(20, round(20 * (1 - over))))
+
+
+def weight_goal_status(latest_kg, target_stones):
+    if latest_kg is None or pd.isna(latest_kg):
+        return "No data", 0
+
+    latest_lb = float(latest_kg) * 2.2046226218
+    target_lb = float(target_stones) * 14
+
+    if latest_lb <= target_lb:
+        return "✓ Goal met", 100
+
+    diff = latest_lb - target_lb
+    return f"{pounds_to_st_lb_change(diff).replace('+', '')} to go", progress_percent(target_lb, latest_lb, higher_is_better=True)
+
+
+def weight_change_friendly(diff_lb):
+    if diff_lb is None or pd.isna(diff_lb):
+        return "No data"
+
+    if abs(float(diff_lb)) < 0.1:
+        return "No real change"
+
+    if float(diff_lb) < 0:
+        return f"⬇ Lost {abs(float(diff_lb)):.1f} lb"
+
+    return f"⬆ Gained {float(diff_lb):.1f} lb"
+
+
+def render_kpi_grid(cards):
+    html_parts = ["<div class='kh-kpi-grid'>"]
+
+    for card in cards:
+        title = html_escape(str(card.get("title", "")))
+        value = html_escape(str(card.get("value", "No data")))
+        sub = html_escape(str(card.get("sub", "")))
+        footer = html_escape(str(card.get("footer", "")))
+        icon = html_escape(str(card.get("icon", "")))
+        color = card.get("color", css_color("text"))
+        bg = card.get("bg", "rgba(255,255,255,0.72)")
+        pct = max(0, min(100, safe_int(card.get("progress", 0), 0)))
+
+        progress_html = ""
+        if card.get("show_progress", True):
+            progress_html = f"""
+                <div class='kh-progress'>
+                    <div class='kh-progress-fill' style='width:{pct}%; background:{color};'></div>
+                </div>
+            """
+
+        html_parts.append(
+            f"""
+            <div class='kh-kpi' style='border-color:{color}33; background:{bg};'>
+                <div class='kh-kpi-title' style='color:{color};'><span>{icon}</span><span>{title}</span></div>
+                <div class='kh-kpi-value'>{value}</div>
+                <div class='kh-kpi-sub'>{sub}</div>
+                {progress_html}
+                <div style='font-size:0.84rem; font-weight:700; color:{color}; margin-top:0.35rem;'>{footer}</div>
+            </div>
+            """
+        )
+
+    html_parts.append("</div>")
+    st.markdown("".join(html_parts), unsafe_allow_html=True)
+
+
+def calculate_health_score(goals, sleep_hours, steps, calories, protein, latest_weight_kg, weight_range):
+    score = 0
+    parts = []
+
+    sleep_points = health_score_component(sleep_hours, goals.get("sleep_hours", 7), True)
+    score += sleep_points
+    parts.append(("Sleep", sleep_points >= 16))
+
+    step_points = health_score_component(steps, goals.get("steps", 7000), True)
+    score += step_points
+    parts.append(("Steps", step_points >= 16))
+
+    calorie_points = health_score_component(calories, goals.get("calories", 1800), False)
+    score += calorie_points
+    parts.append(("Calories", calorie_points >= 16))
+
+    protein_points = health_score_component(protein, goals.get("protein_g", 135), True)
+    score += protein_points
+    parts.append(("Protein", protein_points >= 16))
+
+    weight_points = 0
+    if latest_weight_kg is not None and not pd.isna(latest_weight_kg):
+        target_lb = float(goals.get("target_weight_stones", 16)) * 14
+        latest_lb = float(latest_weight_kg) * 2.2046226218
+
+        if latest_lb <= target_lb:
+            weight_points = 20
+        elif weight_range is not None and not weight_range.empty and len(weight_range) >= 2:
+            sorted_weight = weight_range.sort_values("date")
+            diff_lb = (sorted_weight.iloc[-1]["weight_kg"] - sorted_weight.iloc[0]["weight_kg"]) * 2.2046226218
+            weight_points = 20 if diff_lb <= 0 else 12
+        else:
+            weight_points = 12
+
+    score += weight_points
+    parts.append(("Weight", weight_points >= 16))
+
+    return int(max(0, min(100, round(score)))), parts
+
+
+def render_health_score(score, parts):
+    if score >= 80:
+        message = "Great momentum today."
+        colour = css_color("good")
+    elif score >= 60:
+        message = "A steady day, with a few areas to nudge up."
+        colour = css_color("amber")
+    else:
+        message = "A tougher day. Focus on the next small win."
+        colour = css_color("bad")
+
+    circumference = 2 * 3.14159 * 48
+    offset = circumference * (1 - (score / 100))
+
+    pills = []
+    for name, ok in parts:
+        icon = "✓" if ok else "•"
+        pill_colour = css_color("good") if ok else css_color("muted")
+        pills.append(f"<span class='kh-pill' style='color:{pill_colour};'>{icon} {html_escape(name)}</span>")
+
+    st.markdown(
+        f"""
+        <div class='kh-card kh-health-score'>
+            <div style='display:flex; align-items:center; gap:1rem; flex-wrap:wrap;'>
+                <div style='width:116px; height:116px; position:relative; flex:0 0 auto;'>
+                    <svg width='116' height='116' viewBox='0 0 116 116'>
+                        <circle cx='58' cy='58' r='48' fill='none' stroke='rgba(128,128,128,0.18)' stroke-width='12'/>
+                        <circle cx='58' cy='58' r='48' fill='none' stroke='{colour}' stroke-width='12' stroke-linecap='round'
+                            stroke-dasharray='{circumference:.2f}' stroke-dashoffset='{offset:.2f}' transform='rotate(-90 58 58)'/>
+                    </svg>
+                    <div style='position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;'>
+                        <div style='font-size:2rem; font-weight:850; color:{colour}; line-height:1;'>{score}</div>
+                        <div style='font-size:0.86rem; opacity:0.82;'>/100</div>
+                    </div>
+                </div>
+                <div style='flex:1; min-width:210px;'>
+                    <div style='font-size:1.35rem; font-weight:850; color:{colour};'>Today's Health Score</div>
+                    <div style='font-size:0.98rem; opacity:0.82; margin-top:0.2rem;'>{html_escape(message)}</div>
+                    <div style='margin-top:0.65rem;'>{''.join(pills)}</div>
+                </div>
+                <div style='font-size:2.5rem; flex:0 0 auto;'>🏆</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_food_today_card(today_food_table, total_calories):
+    display = clean_food_dataframe(today_food_table)
+
+    if display.empty:
+        st.info("No food has been logged for today yet.")
+        return
+
+    display = display.copy()
+    display["calories"] = pd.to_numeric(display.get("calories", 0), errors="coerce").fillna(0)
+    display = display.sort_values(["meal", "food"]).head(12)
+
+    rows = []
+    emoji_map = {
+        "renapro": "🥛",
+        "banana": "🍌",
+        "oat": "🥣",
+        "rice cake": "🍘",
+        "protein bar": "🍫",
+        "apple": "🍎",
+        "pear": "🍐",
+        "salad": "🥗",
+        "coffee": "☕",
+        "water": "💧",
+    }
+
+    for _, row in display.iterrows():
+        food = str(row.get("food", "")).strip()
+        food_low = food.lower()
+        icon = "🍽️"
+
+        for needle, emoji in emoji_map.items():
+            if needle in food_low:
+                icon = emoji
+                break
+
+        calories = safe_float(row.get("calories", 0), 0)
+        cal_text = f"{calories:,.0f} kcal" if calories > 0 else ""
+
+        rows.append(
+            f"""
+            <div class='kh-food-row'>
+                <div style='font-weight:720;'><span style='margin-right:0.45rem;'>{icon}</span>{html_escape(food)}</div>
+                <div style='font-weight:800; white-space:nowrap;'>{html_escape(cal_text)}</div>
+            </div>
+            """
+        )
+
+    total_text = f"{total_calories:,.0f} kcal" if total_calories is not None and not pd.isna(total_calories) else ""
+
+    st.markdown(
+        f"""
+        <div class='kh-card'>
+            <div style='display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:0.25rem;'>
+                <div style='font-size:1.35rem; font-weight:850;'>Food Today</div>
+                <div class='kh-pill' style='color:{css_color('good')}; background:{css_color('good')}15;'>{html_escape(total_text)}</div>
+            </div>
+            {''.join(rows)}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_data_status_bar(withings_connected, food_connected):
+    withings_text = "Withings: Connected" if withings_connected else "Withings: Needs attention"
+    food_text = "MyNetDiary: Connected" if food_connected else "MyNetDiary: No food file"
+    colour = css_color("good") if withings_connected and food_connected else css_color("amber")
+
+    st.markdown(
+        f"""
+        <div class='kh-card' style='padding:0.72rem 0.9rem; display:flex; align-items:center; gap:0.8rem;'>
+            <span style='color:{colour}; font-size:1.1rem;'>●</span>
+            <span style='font-weight:750;'>Data status</span>
+            <span class='kh-muted'>{html_escape(withings_text)} · {html_escape(food_text)}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def copy_button(label, text_to_copy, key):
+    safe_text = json.dumps(text_to_copy or "")
+    safe_label = json.dumps(label or "Copy")
+    components.html(
+        f"""
+        <button id="{key}" style="
+            border:0; border-radius:999px; padding:0.62rem 1rem; cursor:pointer;
+            background:#2F6CC4; color:white; font-weight:800; font-size:0.95rem;
+        "></button>
+        <script>
+        (function() {{
+            const btn = document.getElementById({json.dumps(key)});
+            btn.textContent = {safe_label};
+            btn.onclick = async function() {{
+                try {{
+                    await navigator.clipboard.writeText({safe_text});
+                    btn.textContent = 'Copied ✓';
+                    setTimeout(function() {{ btn.textContent = {safe_label}; }}, 1600);
+                }} catch(e) {{
+                    btn.textContent = 'Select text below';
+                    setTimeout(function() {{ btn.textContent = {safe_label}; }}, 1600);
+                }}
+            }};
+        }})();
+        </script>
+        """,
+        height=48,
+    )
 
 
 def dashboard_date_label(value):
@@ -3445,15 +3918,17 @@ def sleep_timeline_chart(sleep_table, title, chart_key):
         x="hour_label",
         y="minutes_asleep",
         title=title,
-        labels={"hour_label": "Time of day", "minutes_asleep": "Minutes asleep"},
+        labels={"hour_label": "", "minutes_asleep": "Minutes asleep"},
     )
+    fig.update_traces(marker_color=css_color("sleep"))
     fig.update_xaxes(
+        title_text=None,
         tickmode="array",
-        tickvals=[f"{h:02d}:00" for h in range(0, 24, 4)],
-        ticktext=[f"{h:02d}:00" for h in range(0, 24, 4)],
+        tickvals=[f"{h:02d}:00" for h in range(0, 25, 4)],
+        ticktext=[f"{h:02d}:00" for h in range(0, 25, 4)],
     )
-    fig.update_yaxes(range=[0, 60])
-    fig.update_layout(height=270, margin=dict(l=10, r=10, t=38, b=10))
+    fig.update_yaxes(title_text=None, range=[0, 60], showticklabels=False)
+    fig.update_layout(height=320, margin=dict(l=8, r=8, t=38, b=8), bargap=0.12)
 
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
@@ -3497,6 +3972,8 @@ def daily_sleep_timing_chart(sleep_table, title, chart_key):
     chart_df["duration"] = chart_df["end_hour"] - chart_df["start_hour"]
     chart_df["date_label"] = pd.to_datetime(chart_df["date"]).dt.strftime("%a %d-%m-%y")
 
+    unique_days = chart_df["date_label"].nunique()
+
     fig = px.bar(
         chart_df,
         x="duration",
@@ -3504,16 +3981,18 @@ def daily_sleep_timing_chart(sleep_table, title, chart_key):
         base="start_hour",
         orientation="h",
         title=title,
-        labels={"date_label": "Date", "duration": "Sleep window", "start_hour": "Hour"},
+        labels={"date_label": "", "duration": "", "start_hour": "Hour"},
     )
-
+    fig.update_traces(marker_color=css_color("sleep"), width=0.72)
     fig.update_xaxes(
+        title_text=None,
         range=[0, 24],
         tickmode="array",
         tickvals=list(range(0, 25, 2)),
         ticktext=[f"{h:02d}:00" for h in range(0, 25, 2)],
     )
-    fig.update_layout(height=max(280, 30 * len(chart_df["date_label"].unique())), margin=dict(l=10, r=10, t=38, b=10))
+    fig.update_yaxes(title_text=None)
+    fig.update_layout(height=max(330, 42 * unique_days + 90), margin=dict(l=8, r=8, t=38, b=8), showlegend=False)
 
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
@@ -3525,25 +4004,42 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
 
     chart_df = df.copy().sort_values("date")
     chart_df["date_label"] = pd.to_datetime(chart_df["date"]).dt.strftime("%a %d-%m-%y")
+    chart_df[value_col] = pd.to_numeric(chart_df[value_col], errors="coerce")
+    chart_df = chart_df.dropna(subset=[value_col])
+
+    if chart_df.empty:
+        st.info("No data available for this chart.")
+        return
+
+    metric_colour = css_color(metric_color_key(value_col))
 
     color_map = {
-        "Good": "#63B892",
-        "Close": "#DABC57",
-        "Low": "#D55A5A",
-        "Normal": "#2F6CC4",
+        "Good": css_color("good"),
+        "Close": css_color("amber"),
+        "Low": css_color("bad"),
+        "Normal": metric_colour,
     }
 
     use_status_col = False
 
-    if value_col == "sleep_hours":
-        chart_df["status"] = chart_df[value_col].apply(lambda v: "Good" if safe_float(v) >= 7 else "Close" if safe_float(v) >= 5 else "Low")
-        use_status_col = True
-    elif value_col == "steps":
-        chart_df["status"] = chart_df[value_col].apply(lambda v: "Good" if safe_float(v) >= 7000 else "Close" if safe_float(v) >= 5000 else "Low")
+    if value_col in ["sleep_hours", "steps"] and goal_value is not None:
+        threshold = float(goal_value)
+        close_threshold = threshold * (0.72 if value_col == "steps" else 0.70)
+        chart_df["status"] = chart_df[value_col].apply(
+            lambda v: "Good" if safe_float(v) >= threshold else "Close" if safe_float(v) >= close_threshold else "Low"
+        )
         use_status_col = True
 
     if chart_type == "line" and not use_status_col:
-        fig = px.line(chart_df, x="date_label", y=value_col, markers=True, title=title)
+        fig = px.line(
+            chart_df,
+            x="date_label",
+            y=value_col,
+            markers=True,
+            title=title,
+            labels={"date_label": "", value_col: friendly_axis_label(value_col)},
+        )
+        fig.update_traces(line_color=metric_colour, marker_color=metric_colour, line_width=3, marker_size=8)
     else:
         if use_status_col:
             fig = px.bar(
@@ -3553,23 +4049,43 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
                 color="status",
                 color_discrete_map=color_map,
                 title=title,
+                labels={"date_label": "", value_col: friendly_axis_label(value_col)},
             )
             fig.update_layout(showlegend=False)
         elif chart_type == "line":
-            fig = px.line(chart_df, x="date_label", y=value_col, markers=True, title=title)
+            fig = px.line(
+                chart_df,
+                x="date_label",
+                y=value_col,
+                markers=True,
+                title=title,
+                labels={"date_label": "", value_col: friendly_axis_label(value_col)},
+            )
+            fig.update_traces(line_color=metric_colour, marker_color=metric_colour, line_width=3, marker_size=8)
         else:
-            fig = px.bar(chart_df, x="date_label", y=value_col, title=title)
+            fig = px.bar(
+                chart_df,
+                x="date_label",
+                y=value_col,
+                title=title,
+                labels={"date_label": "", value_col: friendly_axis_label(value_col)},
+            )
+            fig.update_traces(marker_color=metric_colour)
 
     if goal_value is not None and not pd.isna(goal_value):
         fig.add_hline(
             y=float(goal_value),
             line_dash="dash",
+            line_color="black",
             annotation_text=goal_label,
             annotation_position="top left",
         )
 
-    fig.update_layout(height=275, margin=dict(l=10, r=10, t=38, b=10))
+    fig.update_xaxes(title_text=None)
+    fig.update_yaxes(title_text=friendly_axis_label(value_col))
+    fig.update_layout(height=330, margin=dict(l=8, r=8, t=42, b=8), bargap=0.20)
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
+
 
 
 # ============================================================
@@ -3588,6 +4104,10 @@ withings_errors = {
     "activity": activity_error,
     "weight": weight_error,
 }
+
+goals = load_json_file(GOALS_FILE, DEFAULT_GOALS)
+for _goal_key, _goal_default in DEFAULT_GOALS.items():
+    goals[_goal_key] = safe_float(goals.get(_goal_key, _goal_default), _goal_default)
 
 food_df, food_files, food_parse_messages = load_food_data(uploaded_food_files)
 food_df = clean_food_dataframe(food_df)
@@ -3638,6 +4158,7 @@ tabs = st.tabs(
         "Steps",
         "Food",
         "Weight",
+        "Hospital",
     ]
 )
 
@@ -3648,62 +4169,150 @@ tabs = st.tabs(
 
 with tabs[0]:
     st.subheader("Summary of Today")
-
     st.caption(f"Today is {dashboard_date_label(today_start)}.")
 
-    c1, c2, c3, c4 = st.columns(4)
+    health_score, health_score_parts = calculate_health_score(
+        goals,
+        today_sleep_hours,
+        today_steps,
+        today_calories,
+        today_protein,
+        latest_weight_kg,
+        history_weight,
+    )
+    render_health_score(health_score, health_score_parts)
 
-    with c1:
-        st.metric("Daily Steps", fmt_number(today_steps))
+    weight_status_text, weight_progress = weight_goal_status(latest_weight_kg, goals.get("target_weight_stones", 16))
 
-    with c2:
-        st.metric("Sleep", human_duration_from_hours(today_sleep_hours) if today_sleep_hours is not None else "No data")
+    kpi_cards = [
+        {
+            "title": "Steps",
+            "icon": "👣",
+            "value": fmt_number(today_steps),
+            "sub": f"{goals.get('steps', 7000):,.0f} goal",
+            "footer": goal_status_text(today_steps, goals.get("steps", 7000), unit="", higher_is_better=True, below_word="to go"),
+            "progress": progress_percent(today_steps, goals.get("steps", 7000), True),
+            "color": css_color("steps"),
+            "bg": "rgba(34,166,95,0.06)",
+        },
+        {
+            "title": "Sleep",
+            "icon": "🌙",
+            "value": human_duration_short_from_hours(today_sleep_hours) if today_sleep_hours is not None else "No data",
+            "sub": f"{human_duration_short_from_hours(goals.get('sleep_hours', 7))} goal",
+            "footer": goal_status_text(today_sleep_hours, goals.get("sleep_hours", 7), unit="h", higher_is_better=True, below_word="under"),
+            "progress": progress_percent(today_sleep_hours, goals.get("sleep_hours", 7), True),
+            "color": css_color("sleep"),
+            "bg": "rgba(217,91,91,0.06)",
+        },
+        {
+            "title": "Calories",
+            "icon": "🔥",
+            "value": fmt_number(today_calories),
+            "sub": f"{goals.get('calories', 1800):,.0f} goal",
+            "footer": goal_status_text(today_calories, goals.get("calories", 1800), unit="", higher_is_better=False, below_word="remaining", above_word="over"),
+            "progress": progress_percent(today_calories, goals.get("calories", 1800), False),
+            "color": css_color("food"),
+            "bg": "rgba(242,138,46,0.06)",
+        },
+        {
+            "title": "Weight",
+            "icon": "⚖️",
+            "value": kg_to_st_lb(latest_weight_kg) if latest_weight_kg is not None else "No data",
+            "sub": f"{goals.get('target_weight_stones', 16):g}st goal",
+            "footer": weight_status_text,
+            "progress": weight_progress,
+            "color": css_color("weight"),
+            "bg": "rgba(47,108,196,0.06)",
+        },
+    ]
+    render_kpi_grid(kpi_cards)
 
-    with c3:
-        st.metric("Calories", fmt_number(today_calories))
+    st.markdown("### Today at a Glance")
+    g1, g2 = st.columns(2)
 
-    with c4:
-        st.metric("Weight", kg_to_st_lb(latest_weight_kg) if latest_weight_kg is not None else "No data")
+    with g1:
+        daily_total_chart(
+            history_sleep,
+            "sleep_hours",
+            f"Sleep Last {selected_range_label(history_days)}",
+            "today_glance_sleep",
+            chart_type="bar",
+            goal_value=goals.get("sleep_hours", 7),
+            goal_label="7 hr target",
+        )
+
+    with g2:
+        daily_total_chart(
+            history_activity,
+            "steps",
+            f"Steps Last {selected_range_label(history_days)}",
+            "today_glance_steps",
+            chart_type="bar",
+            goal_value=goals.get("steps", 7000),
+            goal_label="7000 step target",
+        )
+
+    g3, g4 = st.columns(2)
+
+    with g3:
+        daily_total_chart(
+            history_food_daily,
+            "calories",
+            f"Calories Last {selected_range_label(history_days)}",
+            "today_glance_calories",
+            chart_type="line",
+            goal_value=goals.get("calories", 1800),
+            goal_label="1800 kcal target",
+        )
+
+    with g4:
+        if history_weight.empty:
+            st.info("No weight data available for this chart.")
+        else:
+            today_weight_chart = history_weight.copy()
+            today_weight_chart["weight_lb"] = today_weight_chart["weight_kg"] * 2.2046226218
+            daily_total_chart(
+                today_weight_chart,
+                "weight_lb",
+                f"Weight Last {selected_range_label(history_days)}",
+                "today_glance_weight",
+                chart_type="line",
+                goal_value=goals.get("target_weight_stones", 16) * 14,
+                goal_label="Target weight",
+            )
 
     st.divider()
 
-    left, right = st.columns(2)
-
-    with left:
-        st.markdown("### Sleep Today, Midnight to Midnight")
-        sleep_timeline_chart(
-            today_sleep,
-            "24 Hour Sleep Timeline",
-            chart_key="today_sleep_timeline",
-        )
-
-    with right:
-        st.markdown("### Protein, Carbs and Fat Today")
-        macro_pie_chart(
-            today_protein,
-            today_carbs,
-            today_fat,
-            chart_key="today_macro_pie",
-        )
+    st.markdown("### Sleep Today, Midnight to Midnight")
+    sleep_timeline_chart(
+        today_sleep,
+        "24 Hour Sleep Timeline",
+        chart_key="today_sleep_timeline",
+    )
 
     st.divider()
 
-    st.markdown("### Food Today")
-
-    today_food_display = prepare_food_table(today_food)
-
-    if today_food_display.empty:
-        st.info("No food has been logged for today yet.")
-    else:
-        st.dataframe(
-            today_food_display,
-            use_container_width=True,
-            hide_index=True,
-        )
+    st.markdown("### Protein, Carbs and Fat Today")
+    macro_pie_chart(
+        today_protein,
+        today_carbs,
+        today_fat,
+        chart_key="today_macro_pie",
+    )
 
     st.divider()
 
-    with st.expander("Data status"):
+    render_food_today_card(today_food, today_calories)
+
+    st.divider()
+
+    render_data_status_bar(
+        withings_connected=not all([sleep_df.empty, activity_df.empty, weight_df.empty]),
+        food_connected=not food_df.empty,
+    )
+
+    with st.expander("Detailed data status"):
         withings_status = get_withings_status(
             sleep_df=sleep_df,
             activity_df=activity_df,
@@ -3737,55 +4346,85 @@ with tabs[0]:
                     st.write(message)
 
 
+
 # ============================================================
 # History tab
 # ============================================================
 
 with tabs[1]:
     st.subheader(f"Summary Last {selected_range_label(history_days)}")
-
     st.caption(dashboard_date_range_label(history_start, history_end) + ".")
 
-    c1, c2, c3, c4 = st.columns(4)
-
-    with c1:
-        st.metric("Average Daily Steps", fmt_number(history_avg_steps))
-
-    with c2:
-        st.metric("Average Sleep", human_duration_from_hours(history_avg_sleep) if history_avg_sleep is not None else "No data")
-
-    with c3:
-        st.metric("Average Calories", fmt_number(history_avg_calories))
-
-    with c4:
-        st.metric("Latest Weight", kg_to_st_lb(latest_weight_kg) if latest_weight_kg is not None else "No data")
+    render_kpi_grid(
+        [
+            {
+                "title": "Average Sleep",
+                "icon": "🌙",
+                "value": human_duration_short_from_hours(history_avg_sleep) if history_avg_sleep is not None else "No data",
+                "sub": f"{human_duration_short_from_hours(goals.get('sleep_hours', 7))} goal",
+                "footer": goal_status_text(history_avg_sleep, goals.get("sleep_hours", 7), unit="h", higher_is_better=True, below_word="under"),
+                "progress": progress_percent(history_avg_sleep, goals.get("sleep_hours", 7), True),
+                "color": css_color("sleep"),
+                "bg": "rgba(217,91,91,0.06)",
+            },
+            {
+                "title": "Average Steps",
+                "icon": "👣",
+                "value": fmt_number(history_avg_steps),
+                "sub": f"{goals.get('steps', 7000):,.0f} goal",
+                "footer": goal_status_text(history_avg_steps, goals.get("steps", 7000), unit="", higher_is_better=True, below_word="to go"),
+                "progress": progress_percent(history_avg_steps, goals.get("steps", 7000), True),
+                "color": css_color("steps"),
+                "bg": "rgba(34,166,95,0.06)",
+            },
+            {
+                "title": "Average Calories",
+                "icon": "🔥",
+                "value": fmt_number(history_avg_calories),
+                "sub": f"{goals.get('calories', 1800):,.0f} goal",
+                "footer": goal_status_text(history_avg_calories, goals.get("calories", 1800), unit="", higher_is_better=False, below_word="remaining", above_word="over"),
+                "progress": progress_percent(history_avg_calories, goals.get("calories", 1800), False),
+                "color": css_color("food"),
+                "bg": "rgba(242,138,46,0.06)",
+            },
+            {
+                "title": "Latest Weight",
+                "icon": "⚖️",
+                "value": kg_to_st_lb(latest_weight_kg) if latest_weight_kg is not None else "No data",
+                "sub": f"{goals.get('target_weight_stones', 16):g}st goal",
+                "footer": weight_goal_status(latest_weight_kg, goals.get("target_weight_stones", 16))[0],
+                "progress": weight_goal_status(latest_weight_kg, goals.get("target_weight_stones", 16))[1],
+                "color": css_color("weight"),
+                "bg": "rgba(47,108,196,0.06)",
+            },
+        ]
+    )
 
     st.divider()
-
     st.markdown("### Trends")
 
     h1, h2 = st.columns(2)
 
     with h1:
         daily_total_chart(
-            history_activity,
-            "steps",
-            f"Daily Steps Last {selected_range_label(history_days)}",
-            "history_steps_line",
-            chart_type="bar",
-            goal_value=DEFAULT_GOALS["steps"],
-            goal_label="7000 step target",
-        )
-
-    with h2:
-        daily_total_chart(
             history_sleep,
             "sleep_hours",
             f"Sleep Hours Last {selected_range_label(history_days)}",
             "history_sleep_bar",
             chart_type="bar",
-            goal_value=DEFAULT_GOALS["sleep_hours"],
+            goal_value=goals.get("sleep_hours", 7),
             goal_label="7 hr target",
+        )
+
+    with h2:
+        daily_total_chart(
+            history_activity,
+            "steps",
+            f"Daily Steps Last {selected_range_label(history_days)}",
+            "history_steps_bar",
+            chart_type="bar",
+            goal_value=goals.get("steps", 7000),
+            goal_label="7000 step target",
         )
 
     h3, h4 = st.columns(2)
@@ -3797,17 +4436,35 @@ with tabs[1]:
             f"Calories Last {selected_range_label(history_days)}",
             "history_calories_line",
             chart_type="line",
-            goal_value=DEFAULT_GOALS["calories"],
+            goal_value=goals.get("calories", 1800),
             goal_label="1800 kcal target",
         )
 
     with h4:
-        macro_pie_chart(
-            history_avg_protein,
-            history_avg_carbs,
-            history_avg_fat,
-            chart_key="history_macro_pie",
-        )
+        if history_weight.empty:
+            st.info("No weight data found for this range.")
+        else:
+            weight_chart = history_weight.copy()
+            weight_chart["weight_lb"] = weight_chart["weight_kg"] * 2.2046226218
+            daily_total_chart(
+                weight_chart,
+                "weight_lb",
+                f"Weight Last {selected_range_label(history_days)}",
+                "history_weight_line",
+                chart_type="line",
+                goal_value=goals.get("target_weight_stones", 16) * 14,
+                goal_label="Target weight",
+            )
+
+    st.divider()
+
+    st.markdown("### Macro Split")
+    macro_pie_chart(
+        history_avg_protein,
+        history_avg_carbs,
+        history_avg_fat,
+        chart_key="history_macro_pie",
+    )
 
     st.divider()
 
@@ -3817,25 +4474,6 @@ with tabs[1]:
         f"Sleep Timing Last {selected_range_label(history_days)}",
         "history_sleep_timing",
     )
-
-    st.divider()
-
-    st.markdown("### Weight Last Selected Days")
-
-    if history_weight.empty:
-        st.info("No weight data found for this range.")
-    else:
-        weight_chart = history_weight.copy()
-        weight_chart["weight_lb"] = weight_chart["weight_kg"] * 2.2046226218
-        daily_total_chart(
-            weight_chart,
-            "weight_lb",
-            "Weight Trend, lb",
-            "history_weight_line",
-            chart_type="line",
-            goal_value=DEFAULT_GOALS["target_weight_stones"] * 14,
-            goal_label="Target weight",
-        )
 
     st.divider()
 
@@ -3853,6 +4491,7 @@ with tabs[1]:
         )
 
 
+
 # ============================================================
 # Sleep tab
 # ============================================================
@@ -3866,16 +4505,40 @@ with tabs[2]:
         if sleep_error:
             st.warning(f"Sleep API message: {sleep_error}")
     else:
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.metric("Average Sleep", human_duration_from_hours(history_avg_sleep))
-
-        with col2:
-            st.metric("Longest Sleep", human_duration_from_hours(history_sleep["sleep_hours"].max()))
-
-        with col3:
-            st.metric("Shortest Sleep", human_duration_from_hours(history_sleep["sleep_hours"].min()))
+        render_kpi_grid(
+            [
+                {
+                    "title": "Average",
+                    "icon": "🌙",
+                    "value": human_duration_short_from_hours(history_avg_sleep),
+                    "sub": f"{human_duration_short_from_hours(goals.get('sleep_hours', 7))} goal",
+                    "footer": goal_status_text(history_avg_sleep, goals.get("sleep_hours", 7), unit="h", higher_is_better=True, below_word="under"),
+                    "progress": progress_percent(history_avg_sleep, goals.get("sleep_hours", 7), True),
+                    "color": css_color("sleep"),
+                    "bg": "rgba(217,91,91,0.06)",
+                },
+                {
+                    "title": "Longest",
+                    "icon": "🛌",
+                    "value": human_duration_short_from_hours(history_sleep["sleep_hours"].max()),
+                    "sub": "Best single day",
+                    "footer": "Longest sleep",
+                    "progress": progress_percent(history_sleep["sleep_hours"].max(), goals.get("sleep_hours", 7), True),
+                    "color": css_color("sleep"),
+                    "bg": "rgba(217,91,91,0.06)",
+                },
+                {
+                    "title": "Shortest",
+                    "icon": "⏱️",
+                    "value": human_duration_short_from_hours(history_sleep["sleep_hours"].min()),
+                    "sub": "Lowest single day",
+                    "footer": "Shortest sleep",
+                    "progress": progress_percent(history_sleep["sleep_hours"].min(), goals.get("sleep_hours", 7), True),
+                    "color": css_color("sleep"),
+                    "bg": "rgba(217,91,91,0.06)",
+                },
+            ]
+        )
 
         daily_total_chart(
             history_sleep,
@@ -3883,7 +4546,7 @@ with tabs[2]:
             "Daily Sleep Hours",
             "sleep_breakdown_daily",
             chart_type="bar",
-            goal_value=DEFAULT_GOALS["sleep_hours"],
+            goal_value=goals.get("sleep_hours", 7),
             goal_label="7 hr target",
         )
 
@@ -3896,14 +4559,17 @@ with tabs[2]:
         st.markdown("### Sleep Table")
 
         display_sleep = history_sleep.copy().sort_values("date", ascending=False)
-        display_sleep["date"] = display_sleep["date"].apply(dashboard_date_label)
+        display_sleep["Date"] = display_sleep["date"].apply(dashboard_date_label)
         display_sleep["Sleep"] = display_sleep["sleep_hours"].apply(human_duration_short_from_hours)
+        display_sleep["Start"] = display_sleep["start_time"]
+        display_sleep["End"] = display_sleep["end_time"]
 
         st.dataframe(
-            display_sleep[["date", "Sleep", "start_time", "end_time"]],
+            display_sleep[["Date", "Sleep", "Start", "End"]],
             use_container_width=True,
             hide_index=True,
         )
+
 
 
 # ============================================================
@@ -3919,35 +4585,61 @@ with tabs[3]:
         if activity_error:
             st.warning(f"Steps API message: {activity_error}")
     else:
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.metric("Average Steps", fmt_number(history_avg_steps))
-
-        with col2:
-            st.metric("Best Day", fmt_number(history_activity["steps"].max()))
-
-        with col3:
-            st.metric("Lowest Day", fmt_number(history_activity["steps"].min()))
+        render_kpi_grid(
+            [
+                {
+                    "title": "Average Steps",
+                    "icon": "👣",
+                    "value": fmt_number(history_avg_steps),
+                    "sub": f"{goals.get('steps', 7000):,.0f} goal",
+                    "footer": goal_status_text(history_avg_steps, goals.get("steps", 7000), unit="", higher_is_better=True, below_word="to go"),
+                    "progress": progress_percent(history_avg_steps, goals.get("steps", 7000), True),
+                    "color": css_color("steps"),
+                    "bg": "rgba(34,166,95,0.06)",
+                },
+                {
+                    "title": "Best Day",
+                    "icon": "🏆",
+                    "value": fmt_number(history_activity["steps"].max()),
+                    "sub": "Highest day",
+                    "footer": "Best result",
+                    "progress": progress_percent(history_activity["steps"].max(), goals.get("steps", 7000), True),
+                    "color": css_color("steps"),
+                    "bg": "rgba(34,166,95,0.06)",
+                },
+                {
+                    "title": "Lowest Day",
+                    "icon": "🌱",
+                    "value": fmt_number(history_activity["steps"].min()),
+                    "sub": "Lowest day",
+                    "footer": "Low activity day",
+                    "progress": progress_percent(history_activity["steps"].min(), goals.get("steps", 7000), True),
+                    "color": css_color("steps"),
+                    "bg": "rgba(34,166,95,0.06)",
+                },
+            ]
+        )
 
         daily_total_chart(
             history_activity,
             "steps",
             "Daily Steps",
-            "steps_breakdown_line",
+            "steps_breakdown_bar",
             chart_type="bar",
-            goal_value=DEFAULT_GOALS["steps"],
+            goal_value=goals.get("steps", 7000),
             goal_label="7000 step target",
         )
 
         display_steps = history_activity.copy().sort_values("date", ascending=False)
-        display_steps["date"] = display_steps["date"].apply(dashboard_date_label)
+        display_steps["Date"] = display_steps["date"].apply(dashboard_date_label)
+        display_steps["Steps"] = display_steps["steps"].map(lambda x: f"{safe_float(x):,.0f}")
 
         st.dataframe(
-            display_steps[["date", "steps"]],
+            display_steps[["Date", "Steps"]],
             use_container_width=True,
             hide_index=True,
         )
+
 
 
 # ============================================================
@@ -3974,19 +4666,52 @@ with tabs[4]:
     elif history_food_daily.empty:
         st.info("Food files were found, but there is no food data in the selected date range.")
     else:
-        c1, c2, c3, c4 = st.columns(4)
-
-        with c1:
-            st.metric("Average Calories", fmt_number(history_avg_calories))
-
-        with c2:
-            st.metric("Average Protein", fmt_number(history_avg_protein, suffix="g"))
-
-        with c3:
-            st.metric("Average Carbs", fmt_number(history_avg_carbs, suffix="g"))
-
-        with c4:
-            st.metric("Average Fat", fmt_number(history_avg_fat, suffix="g"))
+        render_kpi_grid(
+            [
+                {
+                    "title": "Calories",
+                    "icon": "🔥",
+                    "value": fmt_number(history_avg_calories),
+                    "sub": f"Average · {goals.get('calories', 1800):,.0f} goal",
+                    "footer": goal_status_text(history_avg_calories, goals.get("calories", 1800), unit="", higher_is_better=False, below_word="remaining", above_word="over"),
+                    "progress": progress_percent(history_avg_calories, goals.get("calories", 1800), False),
+                    "color": css_color("food"),
+                    "bg": "rgba(242,138,46,0.06)",
+                },
+                {
+                    "title": "Protein",
+                    "icon": "💪",
+                    "value": fmt_number(history_avg_protein, suffix="g"),
+                    "sub": f"Average · {goals.get('protein_g', 135):,.0f}g goal",
+                    "footer": goal_status_text(history_avg_protein, goals.get("protein_g", 135), unit="g", higher_is_better=True, below_word="to go"),
+                    "progress": progress_percent(history_avg_protein, goals.get("protein_g", 135), True),
+                    "color": css_color("protein"),
+                    "bg": "rgba(144,114,216,0.06)",
+                },
+                {
+                    "title": "Carbs",
+                    "icon": "🌾",
+                    "value": fmt_number(history_avg_carbs, suffix="g"),
+                    "sub": "Average",
+                    "footer": "Macro tracking",
+                    "progress": 0,
+                    "show_progress": False,
+                    "color": "#63B892",
+                    "bg": "rgba(99,184,146,0.06)",
+                },
+                {
+                    "title": "Fat",
+                    "icon": "🥑",
+                    "value": fmt_number(history_avg_fat, suffix="g"),
+                    "sub": "Average",
+                    "footer": "Macro tracking",
+                    "progress": 0,
+                    "show_progress": False,
+                    "color": "#DABC57",
+                    "bg": "rgba(218,188,87,0.08)",
+                },
+            ]
+        )
 
         left, right = st.columns(2)
 
@@ -3997,7 +4722,7 @@ with tabs[4]:
                 "Daily Calories",
                 "food_breakdown_calories",
                 chart_type="bar",
-                goal_value=DEFAULT_GOALS["calories"],
+                goal_value=goals.get("calories", 1800),
                 goal_label="1800 kcal target",
             )
 
@@ -4022,6 +4747,7 @@ with tabs[4]:
         )
 
 
+
 # ============================================================
 # Weight tab
 # ============================================================
@@ -4041,17 +4767,43 @@ with tabs[5]:
         end_weight = w.iloc[-1]["weight_kg"]
         diff_kg = end_weight - start_weight
         diff_lb = diff_kg * 2.2046226218
+        weight_status_text, weight_progress = weight_goal_status(end_weight, goals.get("target_weight_stones", 16))
 
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.metric("Start Weight", kg_to_st_lb(start_weight))
-
-        with col2:
-            st.metric("Latest Weight", kg_to_st_lb(end_weight))
-
-        with col3:
-            st.metric("Change", pounds_to_st_lb_change(diff_lb), delta=f"{diff_lb:+.1f}lb")
+        render_kpi_grid(
+            [
+                {
+                    "title": "Start Weight",
+                    "icon": "⚖️",
+                    "value": kg_to_st_lb(start_weight),
+                    "sub": dashboard_date_label(w.iloc[0]["date"]),
+                    "footer": "Start of range",
+                    "progress": 0,
+                    "show_progress": False,
+                    "color": css_color("weight"),
+                    "bg": "rgba(47,108,196,0.06)",
+                },
+                {
+                    "title": "Latest Weight",
+                    "icon": "📍",
+                    "value": kg_to_st_lb(end_weight),
+                    "sub": dashboard_date_label(w.iloc[-1]["date"]),
+                    "footer": weight_status_text,
+                    "progress": weight_progress,
+                    "color": css_color("weight"),
+                    "bg": "rgba(47,108,196,0.06)",
+                },
+                {
+                    "title": "Change",
+                    "icon": "📉" if diff_lb <= 0 else "📈",
+                    "value": weight_change_friendly(diff_lb),
+                    "sub": f"{diff_lb:+.1f} lb over range",
+                    "footer": "Progress" if diff_lb <= 0 else "Review trend",
+                    "progress": 100 if diff_lb <= 0 else 45,
+                    "color": css_color("good") if diff_lb <= 0 else css_color("amber"),
+                    "bg": "rgba(34,166,95,0.06)" if diff_lb <= 0 else "rgba(218,188,87,0.08)",
+                },
+            ]
+        )
 
         weight_chart = history_weight.copy()
         weight_chart["weight_lb"] = weight_chart["weight_kg"] * 2.2046226218
@@ -4059,24 +4811,156 @@ with tabs[5]:
         daily_total_chart(
             weight_chart,
             "weight_lb",
-            "Weight Trend, lb",
+            "Weight Trend",
             "weight_breakdown_line",
             chart_type="line",
-            goal_value=DEFAULT_GOALS["target_weight_stones"] * 14,
+            goal_value=goals.get("target_weight_stones", 16) * 14,
             goal_label="Target weight",
         )
 
         display_weight = history_weight.copy().sort_values("date", ascending=False)
-        display_weight["date"] = display_weight["date"].apply(dashboard_date_label)
+        display_weight["Date"] = display_weight["date"].apply(dashboard_date_label)
+        display_weight["Weight"] = display_weight["weight_kg"].apply(kg_to_st_lb)
         display_weight["kg"] = display_weight["weight_kg"].round(2)
-        display_weight["stone_lb"] = display_weight["weight_kg"].apply(kg_to_st_lb)
 
         st.markdown("### Weight Table")
 
         st.dataframe(
-            display_weight[["date", "stone_lb", "kg"]],
+            display_weight[["Date", "Weight", "kg"]],
             use_container_width=True,
             hide_index=True,
         )
 
 
+# ============================================================
+# Hospital tab
+# ============================================================
+
+with tabs[6]:
+    st.subheader("Hospital Summary")
+    st.caption("A quick copy-and-paste overview for appointments or messages to the clinical team.")
+
+    sleep_first, sleep_second, sleep_change = compare_first_last_half(history_sleep, "sleep_hours")
+    steps_first, steps_second, steps_change = compare_first_last_half(history_activity, "steps")
+    protein_first, protein_second, protein_change = compare_first_last_half(history_food_daily, "protein_g")
+
+    weight_change_lb = None
+    if history_weight is not None and not history_weight.empty and len(history_weight) >= 2:
+        sorted_weight = history_weight.sort_values("date")
+        weight_change_lb = (sorted_weight.iloc[-1]["weight_kg"] - sorted_weight.iloc[0]["weight_kg"]) * 2.2046226218
+
+    health_notes_df = load_health_notes()
+
+    hospital_summary = build_hospital_summary(
+        history_start,
+        history_end,
+        goals,
+        history_sleep,
+        history_activity,
+        history_weight,
+        history_food_daily,
+        sleep_change,
+        steps_change,
+        weight_change_lb,
+        protein_change,
+        health_notes_df,
+    )
+
+    render_kpi_grid(
+        [
+            {
+                "title": "Sleep Avg",
+                "icon": "🌙",
+                "value": human_duration_short_from_hours(history_avg_sleep) if history_avg_sleep is not None else "No data",
+                "sub": f"Last {selected_range_label(history_days)}",
+                "footer": goal_status_text(history_avg_sleep, goals.get("sleep_hours", 7), unit="h", higher_is_better=True, below_word="under"),
+                "progress": progress_percent(history_avg_sleep, goals.get("sleep_hours", 7), True),
+                "color": css_color("sleep"),
+                "bg": "rgba(217,91,91,0.06)",
+            },
+            {
+                "title": "Steps Avg",
+                "icon": "👣",
+                "value": fmt_number(history_avg_steps),
+                "sub": f"Last {selected_range_label(history_days)}",
+                "footer": goal_status_text(history_avg_steps, goals.get("steps", 7000), unit="", higher_is_better=True, below_word="to go"),
+                "progress": progress_percent(history_avg_steps, goals.get("steps", 7000), True),
+                "color": css_color("steps"),
+                "bg": "rgba(34,166,95,0.06)",
+            },
+            {
+                "title": "Protein Avg",
+                "icon": "💪",
+                "value": fmt_number(history_avg_protein, suffix="g"),
+                "sub": f"Last {selected_range_label(history_days)}",
+                "footer": goal_status_text(history_avg_protein, goals.get("protein_g", 135), unit="g", higher_is_better=True, below_word="to go"),
+                "progress": progress_percent(history_avg_protein, goals.get("protein_g", 135), True),
+                "color": css_color("protein"),
+                "bg": "rgba(144,114,216,0.06)",
+            },
+            {
+                "title": "Weight",
+                "icon": "⚖️",
+                "value": kg_to_st_lb(latest_weight_kg) if latest_weight_kg is not None else "No data",
+                "sub": "Latest reading",
+                "footer": weight_goal_status(latest_weight_kg, goals.get("target_weight_stones", 16))[0],
+                "progress": weight_goal_status(latest_weight_kg, goals.get("target_weight_stones", 16))[1],
+                "color": css_color("weight"),
+                "bg": "rgba(47,108,196,0.06)",
+            },
+        ]
+    )
+
+    copy_button("Copy hospital summary", hospital_summary, "copy_hospital_summary_button")
+
+    st.text_area(
+        "Hospital overview text",
+        hospital_summary,
+        height=360,
+        help="Use the copy button above, or tap inside this box and select/copy the text.",
+        key="hospital_summary_text_area",
+    )
+
+    st.divider()
+
+    st.markdown("### Symptom Notes")
+    latest_note = get_latest_health_note(health_notes_df)
+
+    if latest_note:
+        st.write(symptom_summary_text(health_notes_df))
+    else:
+        st.info("No symptom notes have been recorded yet.")
+
+    with st.expander("Add or update today's symptom note"):
+        current_note = latest_note or {}
+
+        pain = st.slider("Pain 0-10", 0, 10, safe_int(current_note.get("Pain 0-10", 0), 0), key="hospital_pain_slider")
+        brain_fog = st.slider("Brain fog 0-10", 0, 10, safe_int(current_note.get("Brain fog 0-10", 0), 0), key="hospital_brain_slider")
+        fatigue = st.slider("Fatigue 0-10", 0, 10, safe_int(current_note.get("Fatigue 0-10", 0), 0), key="hospital_fatigue_slider")
+        mood = st.text_input("Mood", str(current_note.get("Mood", "") or ""), key="hospital_mood_input")
+        sleep_quality = st.text_input("Sleep quality", str(current_note.get("Sleep quality", "") or ""), key="hospital_sleep_quality_input")
+        symptoms = st.text_area("Symptoms / Notes", str(current_note.get("Symptoms / Notes", "") or ""), key="hospital_symptoms_input")
+        questions = st.text_area("Questions for clinician", str(current_note.get("Questions for clinician", "") or ""), key="hospital_questions_input")
+
+        if st.button("Save today's note", use_container_width=True):
+            add_or_update_today_health_note(
+                health_notes_df,
+                {
+                    "Pain 0-10": pain,
+                    "Brain fog 0-10": brain_fog,
+                    "Fatigue 0-10": fatigue,
+                    "Mood": mood,
+                    "Sleep quality": sleep_quality,
+                    "Symptoms / Notes": symptoms,
+                    "Questions for clinician": questions,
+                },
+            )
+            st.success("Today's symptom note has been saved.")
+            st.rerun()
+
+    with st.expander("Appointments"):
+        appointments_df = load_appointments()
+        if appointments_df.empty:
+            st.info("No appointments recorded yet.")
+        else:
+            st.dataframe(appointments_df, use_container_width=True, hide_index=True)
