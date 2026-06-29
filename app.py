@@ -2830,6 +2830,18 @@ def build_hospital_summary(
     return summary
 
 
+
+def dashboard_date_label(value):
+    try:
+        return pd.to_datetime(value).strftime("%a %d-%m-%y")
+    except Exception:
+        return str(value)
+
+
+def dashboard_date_range_label(start_value, end_value):
+    return f"{dashboard_date_label(start_value)} to {dashboard_date_label(end_value)}"
+
+
 # ============================================================
 # OAuth callback handling
 # ============================================================
@@ -3021,15 +3033,6 @@ def fmt_water(value):
     return fmt_number(value, suffix=" ml")
 
 
-def dashboard_date_label(value):
-    try:
-        return pd.to_datetime(value).strftime("%a %d-%m-%y")
-    except Exception:
-        return str(value or "")
-
-
-def dashboard_date_range_label(start_value, end_value):
-    return f"{dashboard_date_label(start_value)} to {dashboard_date_label(end_value)}"
 
 
 def infer_fluid_ml_from_text(*values):
