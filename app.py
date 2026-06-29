@@ -3421,38 +3421,41 @@ def weight_change_friendly(diff_lb):
 
 
 def render_kpi_grid(cards):
-    """Render KPI cards using Streamlit-native components only.
+    html_parts = ["<div class='kh-kpi-grid'>"]
 
-    No custom HTML is used here, because some Streamlit Cloud/mobile
-    builds can display nested HTML literally inside cards.
-    """
-    if not cards:
-        return
+    for card in cards:
+        title = html_escape(str(card.get("title", "")))
+        value = html_escape(str(card.get("value", "No data")))
+        sub = html_escape(str(card.get("sub", "")))
+        footer = html_escape(str(card.get("footer", "")))
+        icon = html_escape(str(card.get("icon", "")))
+        color = card.get("color", css_color("text"))
+        bg = card.get("bg", "rgba(255,255,255,0.72)")
+        pct = max(0, min(100, safe_int(card.get("progress", 0), 0)))
 
-    column_count = min(4, len(cards))
-    columns = st.columns(column_count)
+        progress_html = ""
+        if card.get("show_progress", True):
+            progress_html = f"""
+                <div class='kh-progress'>
+                    <div class='kh-progress-fill' style='width:{pct}%; background:{color};'></div>
+                </div>
+            """
 
-    for idx, card in enumerate(cards):
-        with columns[idx % column_count]:
-            title = str(card.get("title", ""))
-            value = str(card.get("value", "No data"))
-            sub = str(card.get("sub", ""))
-            footer = str(card.get("footer", ""))
-            icon = str(card.get("icon", ""))
-            pct = max(0, min(100, safe_int(card.get("progress", 0), 0)))
+        html_parts.append(
+            f"""
+            <div class='kh-kpi' style='border-color:{color}33; background:{bg};'>
+                <div class='kh-kpi-title' style='color:{color};'><span>{icon}</span><span>{title}</span></div>
+                <div class='kh-kpi-value'>{value}</div>
+                <div class='kh-kpi-sub'>{sub}</div>
+                {progress_html}
+                <div style='font-size:0.84rem; font-weight:700; color:{color}; margin-top:0.35rem;'>{footer}</div>
+            </div>
+            """
+        )
 
-            with st.container(border=True):
-                st.markdown(f"**{icon} {title}**")
-                st.metric(label="", value=value, label_visibility="collapsed")
+    html_parts.append("</div>")
+    st.markdown("".join(html_parts), unsafe_allow_html=True)
 
-                if sub:
-                    st.caption(sub)
-
-                if card.get("show_progress", True):
-                    st.progress(pct, text=f"{pct}%")
-
-                if footer:
-                    st.caption(footer)
 
 def calculate_health_score(goals, sleep_hours, steps, calories, protein, latest_weight_kg, weight_range):
     score = 0
@@ -3543,6 +3546,10 @@ def render_health_score(score, parts):
 
 
 def render_food_today_card(today_food_table, total_calories):
+    """Render today's food with Streamlit-native components only.
+
+    This avoids raw HTML showing in Streamlit Cloud / browser exports.
+    """
     display = clean_food_dataframe(today_food_table)
 
     if display.empty:
@@ -3553,73 +3560,59 @@ def render_food_today_card(today_food_table, total_calories):
     display["calories"] = pd.to_numeric(display.get("calories", 0), errors="coerce").fillna(0)
     display = display.sort_values(["meal", "food"]).head(12)
 
-    rows = []
     emoji_map = {
-        "renapro": "🥛",
-        "banana": "🍌",
-        "oat": "🥣",
-        "rice cake": "🍘",
-        "protein bar": "🍫",
-        "apple": "🍎",
-        "pear": "🍐",
-        "salad": "🥗",
-        "coffee": "☕",
-        "water": "💧",
+        "renapro": "??",
+        "banana": "??",
+        "oat": "??",
+        "rice cake": "??",
+        "protein bar": "??",
+        "apple": "??",
+        "pear": "??",
+        "salad": "??",
+        "coffee": "?",
+        "water": "??",
+        "sugar": "?",
     }
-
-    for _, row in display.iterrows():
-        food = str(row.get("food", "")).strip()
-        food_low = food.lower()
-        icon = "🍽️"
-
-        for needle, emoji in emoji_map.items():
-            if needle in food_low:
-                icon = emoji
-                break
-
-        calories = safe_float(row.get("calories", 0), 0)
-        cal_text = f"{calories:,.0f} kcal" if calories > 0 else ""
-
-        rows.append(
-            f"""
-            <div class='kh-food-row'>
-                <div style='font-weight:720;'><span style='margin-right:0.45rem;'>{icon}</span>{html_escape(food)}</div>
-                <div style='font-weight:800; white-space:nowrap;'>{html_escape(cal_text)}</div>
-            </div>
-            """
-        )
 
     total_text = f"{total_calories:,.0f} kcal" if total_calories is not None and not pd.isna(total_calories) else ""
 
-    st.markdown(
-        f"""
-        <div class='kh-card'>
-            <div style='display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:0.25rem;'>
-                <div style='font-size:1.35rem; font-weight:850;'>Food Today</div>
-                <div class='kh-pill' style='color:{css_color('good')}; background:{css_color('good')}15;'>{html_escape(total_text)}</div>
-            </div>
-            {''.join(rows)}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    with st.container(border=True):
+        title_cols = st.columns([0.72, 0.28])
+        with title_cols[0]:
+            st.markdown("### Food Today")
+        with title_cols[1]:
+            if total_text:
+                st.metric("Total", total_text)
+
+        for _, row in display.iterrows():
+            food = str(row.get("food", "")).strip()
+            food_low = food.lower()
+            icon = "???"
+
+            for needle, emoji in emoji_map.items():
+                if needle in food_low:
+                    icon = emoji
+                    break
+
+            calories = safe_float(row.get("calories", 0), 0)
+            cal_text = f"{calories:,.0f} kcal" if calories > 0 else ""
+
+            row_cols = st.columns([0.74, 0.26])
+            with row_cols[0]:
+                st.markdown(f"**{icon} {food}**")
+            with row_cols[1]:
+                st.markdown(f"**{cal_text}**")
 
 
 def render_data_status_bar(withings_connected, food_connected):
+    """Render connection status with Streamlit-native components only."""
     withings_text = "Withings: Connected" if withings_connected else "Withings: Needs attention"
     food_text = "MyNetDiary: Connected" if food_connected else "MyNetDiary: No food file"
-    colour = css_color("good") if withings_connected and food_connected else css_color("amber")
+    status_icon = "?" if withings_connected and food_connected else "??"
 
-    st.markdown(
-        f"""
-        <div class='kh-card' style='padding:0.72rem 0.9rem; display:flex; align-items:center; gap:0.8rem;'>
-            <span style='color:{colour}; font-size:1.1rem;'>●</span>
-            <span style='font-weight:750;'>Data status</span>
-            <span class='kh-muted'>{html_escape(withings_text)} · {html_escape(food_text)}</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    with st.container(border=True):
+        st.markdown(f"**{status_icon} Data status**")
+        st.caption(f"{withings_text} ? {food_text}")
 
 
 def copy_button(label, text_to_copy, key):
