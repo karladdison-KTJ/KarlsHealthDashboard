@@ -2759,9 +2759,7 @@ handle_withings_callback()
 # ============================================================
 
 st.title(APP_TITLE)
-st.caption("Sleep, steps, weight, food, hospital summaries, medication, appointments and health notes.")
-
-goals = load_json_file(GOALS_FILE, DEFAULT_GOALS)
+st.caption("Daily health dashboard showing today, recent history, sleep, steps, food, water and weight.")
 
 with st.sidebar:
     if st.button("Lock dashboard on this device", use_container_width=True):
@@ -2770,54 +2768,31 @@ with st.sidebar:
         remember_cookie_clear_script()
         st.stop()
 
-    st.header("Dashboard Range")
+    st.header("History Range")
 
-    main_range_options = {
-        "1 day": 1,
-        "2 days": 2,
+    history_range_options = {
         "3 days": 3,
         "7 days": 7,
         "14 days": 14,
-        "21 days": 21,
-        "28 days": 28,
-        "6 weeks": 42,
-        "2 months": 60,
+        "30 days": 30,
+        "60 days": 60,
+        "90 days": 90,
     }
 
-    weight_range_options = {
-        "2 weeks": 14,
-        "3 weeks": 21,
-        "4 weeks": 28,
-        "6 weeks": 42,
-        "2 months": 60,
-        "3 months": 90,
-    }
-
-    main_range_label = st.radio(
-        "Main range",
-        list(main_range_options.keys()),
-        index=2,
+    history_range_label = st.radio(
+        "Show history for",
+        list(history_range_options.keys()),
+        index=1,
         horizontal=False,
-        key="main_range_radio",
+        key="history_range_radio",
     )
 
-    weight_range_label = st.radio(
-        "Weight range",
-        list(weight_range_options.keys()),
-        index=0,
-        horizontal=False,
-        key="weight_range_radio",
-    )
+    history_days = history_range_options[history_range_label]
+    history_start, history_end = date_range_from_days(history_days)
 
-    main_days = main_range_options[main_range_label]
-    weight_days = weight_range_options[weight_range_label]
+    today_start, today_end = today_date(), today_date()
 
-    main_start, main_end = date_range_from_days(main_days)
-    weight_start, weight_end = date_range_from_days(weight_days)
-
-    st.divider()
-    st.caption(f"Main range: {main_start.strftime('%d %b %Y')} to {main_end.strftime('%d %b %Y')}")
-    st.caption(f"Weight range: {weight_start.strftime('%d %b %Y')} to {weight_end.strftime('%d %b %Y')}")
+    st.caption(f"History: {history_start.strftime('%d %b %Y')} to {history_end.strftime('%d %b %Y')}")
 
     st.divider()
     st.header("Withings")
@@ -2840,9 +2815,9 @@ with st.sidebar:
                     "This helps the app reconnect after a cloud restart. Treat it like a password."
                 )
                 token_backup_text = (
-                    "WITHINGS_TOKENS_JSON = '''\n"
+                    'WITHINGS_TOKENS_JSON = """\n'
                     + json.dumps(current_tokens_for_backup, indent=2)
-                    + "\n'''"
+                    + '\n"""'
                 )
                 st.text_area(
                     "Copy this whole block into Streamlit Secrets",
@@ -2898,34 +2873,6 @@ with st.sidebar:
             else:
                 st.error(restore_message)
 
-        if st.button("Back up editable dashboard files now", use_container_width=True):
-            editable_results = backup_dashboard_editable_files_to_google_drive()
-            successful = [r for r in editable_results if r.get("Saved")]
-            failed = [r for r in editable_results if not r.get("Saved")]
-
-            if successful:
-                st.success(f"Backed up {len(successful)} editable file(s) to Google Drive.")
-
-            if failed:
-                with st.expander("Editable file backup messages"):
-                    for row in editable_results:
-                        st.write(f"{row['File']}: {row['Message']}")
-
-        if st.button("Restore editable dashboard files from Google Drive", use_container_width=True):
-            restore_results = restore_dashboard_editable_files_from_google_drive(force=True)
-            restored = [r for r in restore_results if r.get("Restored")]
-
-            if restored:
-                st.success(f"Restored {len(restored)} editable file(s) from Google Drive.")
-                st.cache_data.clear()
-                st.rerun()
-            else:
-                st.info("No editable files were restored. Check the messages below.")
-
-            with st.expander("Editable file restore messages"):
-                for row in restore_results:
-                    st.write(f"{row['File']}: {row['Message']}")
-
         google_token_backup = google_drive_token_backup_text()
 
         if google_token_backup:
@@ -2948,13 +2895,12 @@ with st.sidebar:
         "Upload MyNetDiary export",
         type=["xls", "xlsx"],
         accept_multiple_files=True,
-        help="Upload files such as MyNetDiary_Year_2026.xls. In Streamlit Cloud this keeps food data private in your current session.",
+        help="Upload files such as MyNetDiary_Year_2026.xls. Uploaded files are saved to Google Drive if Google Drive is connected.",
         key="food_file_uploader",
     )
 
     if uploaded_food_files:
         st.success(f"{len(uploaded_food_files)} food file(s) uploaded for this session.")
-        st.caption("Uploaded files will also be saved to Google Drive if Google Drive is connected.")
         for uploaded_file in uploaded_food_files:
             st.caption(uploaded_file.name)
     else:
@@ -2972,15 +2918,253 @@ with st.sidebar:
 
 
 # ============================================================
+# New dashboard helpers
+# ============================================================
+
+def fmt_number(value, decimals=0, suffix=""):
+    if value is None or pd.isna(value):
+        return "No data"
+
+    if decimals == 0:
+        return f"{float(value):,.0f}{suffix}"
+
+    return f"{float(value):,.{decimals}f}{suffix}"
+
+
+def latest_value_for_metric(df, value_col, start_date=None, end_date=None):
+    if df is None or df.empty or value_col not in df.columns:
+        return None
+
+    temp = df.copy()
+
+    if start_date is not None and end_date is not None and "date" in temp.columns:
+        temp = filter_by_date(temp, start_date, end_date)
+
+    if temp.empty:
+        return None
+
+    temp = temp.dropna(subset=[value_col])
+
+    if temp.empty:
+        return None
+
+    return temp.sort_values("date").iloc[-1][value_col]
+
+
+def sum_for_day(df, day, value_col):
+    if df is None or df.empty or "date" not in df.columns or value_col not in df.columns:
+        return None
+
+    temp = filter_by_date(df, day, day)
+
+    if temp.empty:
+        return None
+
+    return temp[value_col].sum()
+
+
+def mean_for_range(df, value_col):
+    if df is None or df.empty or value_col not in df.columns:
+        return None
+
+    temp = df.dropna(subset=[value_col])
+
+    if temp.empty:
+        return None
+
+    return temp[value_col].mean()
+
+
+def prepare_food_table(food_table):
+    if food_table is None or food_table.empty:
+        return pd.DataFrame()
+
+    display = food_table.copy()
+
+    for col in ["meal", "food"]:
+        if col in display.columns:
+            display[col] = display[col].replace("nan", "")
+
+    rename_map = {
+        "date": "Date",
+        "meal": "Meal",
+        "food": "Food",
+        "protein_g": "Protein",
+        "calories": "Calories",
+        "carbs_g": "Carbs",
+        "fat_g": "Fat",
+        "sugar_g": "Sugar",
+        "fluid_ml": "Water ml",
+    }
+
+    cols = [c for c in ["date", "meal", "food", "protein_g", "calories", "carbs_g", "fat_g", "sugar_g", "fluid_ml"] if c in display.columns]
+    display = display[cols].rename(columns=rename_map)
+
+    for col in ["Protein", "Calories", "Carbs", "Fat", "Sugar", "Water ml"]:
+        if col in display.columns:
+            display[col] = pd.to_numeric(display[col], errors="coerce").round(0)
+
+    return display
+
+
+def sleep_rows_to_hourly_minutes(sleep_table):
+    """
+    Withings summary gives one start/end window per sleep day.
+    This converts that window into approximate minutes asleep in each hour of the day.
+    """
+    hours = pd.DataFrame({"hour": list(range(24)), "minutes_asleep": [0.0] * 24})
+
+    if sleep_table is None or sleep_table.empty:
+        return hours
+
+    for _, row in sleep_table.iterrows():
+        start_time = str(row.get("start_time", "") or "")
+        end_time = str(row.get("end_time", "") or "")
+        sleep_hours = safe_float(row.get("sleep_hours", 0), 0)
+
+        if not start_time or not end_time or ":" not in start_time or ":" not in end_time or sleep_hours <= 0:
+            continue
+
+        try:
+            start_h, start_m = [int(x) for x in start_time.split(":")[:2]]
+            end_h, end_m = [int(x) for x in end_time.split(":")[:2]]
+        except Exception:
+            continue
+
+        start_min = start_h * 60 + start_m
+        end_min = end_h * 60 + end_m
+
+        if end_min <= start_min:
+            end_min += 24 * 60
+
+        max_duration = max(0, min(end_min - start_min, int(round(sleep_hours * 60))))
+
+        cursor = start_min
+        remaining = max_duration
+
+        while remaining > 0:
+            hour_index = (cursor // 60) % 24
+            next_hour = ((cursor // 60) + 1) * 60
+            minutes_this_hour = min(remaining, next_hour - cursor)
+
+            hours.loc[hours["hour"] == hour_index, "minutes_asleep"] += minutes_this_hour
+
+            cursor += minutes_this_hour
+            remaining -= minutes_this_hour
+
+    hours["hour_label"] = hours["hour"].apply(lambda h: f"{h:02d}:00")
+    hours["minutes_asleep"] = hours["minutes_asleep"].clip(lower=0, upper=60)
+
+    return hours
+
+
+def sleep_timeline_chart(sleep_table, title, chart_key):
+    hourly = sleep_rows_to_hourly_minutes(sleep_table)
+
+    if hourly["minutes_asleep"].sum() <= 0:
+        st.info("No sleep timing data available for this chart.")
+        return
+
+    fig = px.bar(
+        hourly,
+        x="hour_label",
+        y="minutes_asleep",
+        title=title,
+        labels={"hour_label": "Time of day", "minutes_asleep": "Minutes asleep"},
+    )
+    fig.update_yaxes(range=[0, 60])
+    fig.update_layout(height=330, margin=dict(l=20, r=20, t=50, b=20))
+
+    st.plotly_chart(fig, use_container_width=True, key=chart_key)
+
+
+def daily_sleep_timing_chart(sleep_table, title, chart_key):
+    if sleep_table is None or sleep_table.empty:
+        st.info("No sleep timing data available.")
+        return
+
+    rows = []
+
+    for _, row in sleep_table.iterrows():
+        day = row.get("date")
+        start_time = str(row.get("start_time", "") or "")
+        end_time = str(row.get("end_time", "") or "")
+
+        if not day or not start_time or not end_time or ":" not in start_time or ":" not in end_time:
+            continue
+
+        try:
+            start_h, start_m = [int(x) for x in start_time.split(":")[:2]]
+            end_h, end_m = [int(x) for x in end_time.split(":")[:2]]
+        except Exception:
+            continue
+
+        start_hour = start_h + (start_m / 60)
+        end_hour = end_h + (end_m / 60)
+
+        if end_hour <= start_hour:
+            rows.append({"date": day, "start_hour": start_hour, "end_hour": 24})
+            rows.append({"date": day, "start_hour": 0, "end_hour": end_hour})
+        else:
+            rows.append({"date": day, "start_hour": start_hour, "end_hour": end_hour})
+
+    chart_df = pd.DataFrame(rows)
+
+    if chart_df.empty:
+        st.info("No sleep timing data available.")
+        return
+
+    chart_df["duration"] = chart_df["end_hour"] - chart_df["start_hour"]
+    chart_df["date_label"] = pd.to_datetime(chart_df["date"]).dt.strftime("%a %d %b")
+
+    fig = px.bar(
+        chart_df,
+        x="duration",
+        y="date_label",
+        base="start_hour",
+        orientation="h",
+        title=title,
+        labels={"date_label": "Date", "duration": "Sleep window", "start_hour": "Hour"},
+    )
+
+    fig.update_xaxes(
+        range=[0, 24],
+        tickmode="array",
+        tickvals=list(range(0, 25, 2)),
+        ticktext=[f"{h:02d}:00" for h in range(0, 25, 2)],
+    )
+    fig.update_layout(height=max(330, 34 * len(chart_df["date_label"].unique())), margin=dict(l=20, r=20, t=50, b=20))
+
+    st.plotly_chart(fig, use_container_width=True, key=chart_key)
+
+
+def daily_total_chart(df, value_col, title, chart_key, chart_type="bar"):
+    if df is None or df.empty or value_col not in df.columns:
+        st.info("No data available for this chart.")
+        return
+
+    chart_df = df.copy().sort_values("date")
+    chart_df["date_label"] = pd.to_datetime(chart_df["date"]).dt.strftime("%a %d %b")
+
+    if chart_type == "line":
+        fig = px.line(chart_df, x="date_label", y=value_col, markers=True, title=title)
+    else:
+        fig = px.bar(chart_df, x="date_label", y=value_col, title=title)
+
+    fig.update_layout(height=340, margin=dict(l=20, r=20, t=50, b=20))
+    st.plotly_chart(fig, use_container_width=True, key=chart_key)
+
+
+# ============================================================
 # Load data
 # ============================================================
 
 runtime_tokens, runtime_refresh_error = get_runtime_withings_tokens()
 runtime_access_token = runtime_tokens.get("access_token", "") if runtime_tokens else ""
 
-sleep_df, sleep_error = get_withings_sleep(main_start, main_end, runtime_access_token)
-activity_df, activity_error = get_withings_activity(main_start, main_end, runtime_access_token)
-weight_df, weight_error = get_withings_weight(weight_start, weight_end, runtime_access_token)
+sleep_df, sleep_error = get_withings_sleep(history_start, history_end, runtime_access_token)
+activity_df, activity_error = get_withings_activity(history_start, history_end, runtime_access_token)
+weight_df, weight_error = get_withings_weight(history_start, history_end, runtime_access_token)
 
 withings_errors = {
     "sleep": sleep_error,
@@ -2989,100 +3173,39 @@ withings_errors = {
 }
 
 food_df, food_files, food_parse_messages = load_food_data(uploaded_food_files)
-food_range = filter_by_date(food_df, main_start, main_end)
 food_daily = food_daily_summary(food_df)
-food_daily_range = filter_by_date(food_daily, main_start, main_end)
 
-sleep_range = filter_by_date(sleep_df, main_start, main_end)
-activity_range = filter_by_date(activity_df, main_start, main_end)
-weight_range = filter_by_date(weight_df, weight_start, weight_end)
+today_sleep = filter_by_date(sleep_df, today_start, today_end)
+today_activity = filter_by_date(activity_df, today_start, today_end)
+today_food = filter_by_date(food_df, today_start, today_end)
+today_food_daily = filter_by_date(food_daily, today_start, today_end)
+today_weight = filter_by_date(weight_df, today_start, today_end)
 
-health_notes_df = load_health_notes()
-health_notes_chart_df = prepare_health_notes_for_charts(health_notes_df)
-latest_health_note = get_latest_health_note(health_notes_df)
+history_sleep = filter_by_date(sleep_df, history_start, history_end)
+history_activity = filter_by_date(activity_df, history_start, history_end)
+history_food = filter_by_date(food_df, history_start, history_end)
+history_food_daily = filter_by_date(food_daily, history_start, history_end)
+history_weight = filter_by_date(weight_df, history_start, history_end)
 
-today_table = build_today_yesterday_3days(
-    sleep_df=sleep_df,
-    activity_df=activity_df,
-    food_daily_df=food_daily,
-    weight_df=weight_df,
-)
+today_steps = sum_for_day(activity_df, today_start, "steps")
+today_sleep_hours = sum_for_day(sleep_df, today_start, "sleep_hours")
+today_calories = sum_for_day(food_daily, today_start, "calories")
+today_protein = sum_for_day(food_daily, today_start, "protein_g")
+today_carbs = sum_for_day(food_daily, today_start, "carbs_g")
+today_fat = sum_for_day(food_daily, today_start, "fat_g")
+today_water = sum_for_day(food_daily, today_start, "fluid_ml")
+latest_weight_kg = latest_value_for_metric(weight_df, "weight_kg")
 
+history_avg_steps = mean_for_range(history_activity, "steps")
+history_avg_sleep = mean_for_range(history_sleep, "sleep_hours")
+history_avg_calories = mean_for_range(history_food_daily, "calories")
+history_avg_protein = mean_for_range(history_food_daily, "protein_g")
+history_avg_carbs = mean_for_range(history_food_daily, "carbs_g")
+history_avg_fat = mean_for_range(history_food_daily, "fat_g")
+history_avg_water = mean_for_range(history_food_daily, "fluid_ml")
 
-# ============================================================
-# Summary values and trends
-# ============================================================
-
-avg_sleep = None
-avg_steps = None
-avg_calories = None
-avg_protein = None
-avg_carbs = None
-avg_fat = None
-latest_weight_kg = None
-weight_change_lb = None
-
-if not sleep_range.empty and "sleep_hours" in sleep_range.columns:
-    avg_sleep = sleep_range["sleep_hours"].mean()
-
-if not activity_range.empty and "steps" in activity_range.columns:
-    avg_steps = activity_range["steps"].mean()
-
-if not food_daily_range.empty and "calories" in food_daily_range.columns:
-    avg_calories = food_daily_range["calories"].mean()
-
-if not food_daily_range.empty and "protein_g" in food_daily_range.columns:
-    avg_protein = food_daily_range["protein_g"].mean()
-
-if not food_daily_range.empty and "carbs_g" in food_daily_range.columns:
-    avg_carbs = food_daily_range["carbs_g"].mean()
-
-if not food_daily_range.empty and "fat_g" in food_daily_range.columns:
-    avg_fat = food_daily_range["fat_g"].mean()
-
-if not weight_range.empty and "weight_kg" in weight_range.columns:
-    w_sorted = weight_range.sort_values("date")
-    latest_weight_kg = w_sorted.iloc[-1]["weight_kg"]
-
-    if len(w_sorted) >= 2:
-        start_weight_kg = w_sorted.iloc[0]["weight_kg"]
-        end_weight_kg = w_sorted.iloc[-1]["weight_kg"]
-        weight_change_lb = (end_weight_kg - start_weight_kg) * 2.2046226218
-
-sleep_first, sleep_second, sleep_change = compare_first_last_half(sleep_range, "sleep_hours")
-steps_first, steps_second, steps_change = compare_first_last_half(activity_range, "steps")
-calorie_first, calorie_second, calorie_change = compare_first_last_half(food_daily_range, "calories")
-protein_first, protein_second, protein_change = compare_first_last_half(food_daily_range, "protein_g")
-
-sleep_status, sleep_detail = status_badge(
-    avg_sleep,
-    goals["sleep_hours"],
-    higher_is_better=True,
-    amber_margin=0.10,
-)
-
-steps_status, steps_detail = status_badge(
-    avg_steps,
-    goals["steps"],
-    higher_is_better=True,
-    amber_margin=0.10,
-)
-
-protein_status, protein_detail = status_badge(
-    avg_protein,
-    goals["protein_g"],
-    higher_is_better=True,
-    amber_margin=0.10,
-)
-
-target_weight_kg = stones_to_kg(goals["target_weight_stones"])
-
-weight_status, weight_detail = status_badge(
-    latest_weight_kg,
-    target_weight_kg,
-    higher_is_better=False,
-    amber_margin=0.05,
-)
+if latest_weight_kg is None:
+    latest_weight_kg = latest_value_for_metric(weight_df, "weight_kg")
 
 
 # ============================================================
@@ -3091,180 +3214,81 @@ weight_status, weight_detail = status_badge(
 
 tabs = st.tabs(
     [
-        f"Summary ({selected_range_label(main_days)})",
+        "Today",
+        f"History ({selected_range_label(history_days)})",
         "Sleep",
         "Steps",
-        "Weight",
         "Food",
-        "Hospital",
-        "Health Notes",
-        "Medication",
-        "Appointments",
-        "Goals",
+        "Weight",
     ]
 )
 
 
 # ============================================================
-# Summary tab
+# Today tab
 # ============================================================
 
 with tabs[0]:
-    st.subheader(f"Summary ({selected_range_label(main_days)})")
+    st.subheader("Summary of Today")
 
-    st.caption("Quick overview of sleep, steps, weight, nutrition and symptoms for the selected range.")
+    st.caption(f"Today is {today_start.strftime('%A %d %B %Y')}.")
 
-    col1, col2, col3, col4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
 
-    with col1:
-        sleep_delta = f"{sleep_change:+.2f} hrs" if sleep_change is not None else None
-        metric_card(
-            "Average Sleep",
-            human_duration_short_from_hours(avg_sleep) if avg_sleep is not None and not pd.isna(avg_sleep) else "No data",
-            delta=sleep_delta,
-        )
-        small_warning("Status", sleep_status)
+    with c1:
+        st.metric("Daily Steps", fmt_number(today_steps))
 
-    with col2:
-        steps_delta = f"{steps_change:+,.0f}" if steps_change is not None else None
-        metric_card(
-            "Average Steps",
-            f"{avg_steps:,.0f}" if avg_steps is not None and not pd.isna(avg_steps) else "No data",
-            delta=steps_delta,
-        )
-        small_warning("Status", steps_status)
+    with c2:
+        st.metric("Sleep", human_duration_from_hours(today_sleep_hours) if today_sleep_hours is not None else "No data")
 
-    with col3:
-        weight_delta = f"{weight_change_lb:+.1f}lb" if weight_change_lb is not None else None
-        metric_card(
-            "Current Weight",
-            kg_to_st_lb(latest_weight_kg) if latest_weight_kg is not None else "No data",
-            delta=weight_delta,
-        )
-        small_warning("Status", weight_status)
+    with c3:
+        st.metric("Calories", fmt_number(today_calories))
 
-    with col4:
-        protein_delta = f"{protein_change:+.0f}g" if protein_change is not None else None
-        metric_card(
-            "Average Protein",
-            f"{avg_protein:.0f}g" if avg_protein is not None and not pd.isna(avg_protein) else "No data",
-            delta=protein_delta,
-        )
-        small_warning("Status", protein_status)
+    with c4:
+        st.metric("Water", fmt_number(today_water, suffix=" ml"))
 
-    st.divider()
-
-    st.markdown("### Recent Trends")
-
-    t1, t2, t3, t4 = st.columns(4)
-
-    with t1:
-        if sleep_change is None:
-            show_trend_card("Sleep trend", "No data", "Not enough sleep data to compare.", sleep_status)
-        else:
-            show_trend_card(
-                "Sleep trend",
-                f"{trend_arrow(sleep_change)} {human_duration_short_from_hours(abs(sleep_change))}",
-                "Change between earlier and later part of selected range.",
-                sleep_status,
-            )
-
-    with t2:
-        if steps_change is None:
-            show_trend_card("Steps trend", "No data", "Not enough step data to compare.", steps_status)
-        else:
-            show_trend_card(
-                "Steps trend",
-                f"{trend_arrow(steps_change)} {steps_change:+,.0f}",
-                "Average step change across the selected range.",
-                steps_status,
-            )
-
-    with t3:
-        if weight_change_lb is None:
-            show_trend_card("Weight trend", "No data", "Not enough weight data to compare.", weight_status)
-        else:
-            show_trend_card(
-                "Weight trend",
-                f"{trend_arrow(weight_change_lb, lower_is_better=True)} {pounds_to_st_lb_change(weight_change_lb)}",
-                f"Total change over {selected_range_label(weight_days).lower()}.",
-                weight_status,
-            )
-
-    with t4:
-        if protein_change is None:
-            show_trend_card("Protein trend", "No data", "Not enough food data to compare.", protein_status)
-        else:
-            show_trend_card(
-                "Protein trend",
-                f"{trend_arrow(protein_change)} {protein_change:+.0f}g",
-                "Average protein change across logged food days.",
-                protein_status,
-            )
-
-    st.divider()
-
-    st.markdown("### Latest Health Note")
-
-    if latest_health_note:
-        h1, h2, h3, h4 = st.columns(4)
-
-        with h1:
-            pain_value = latest_health_note.get("Pain 0-10")
-            st.metric("Pain", f"{pain_value:.0f}/10" if not pd.isna(pain_value) else "No data")
-
-        with h2:
-            brain_value = latest_health_note.get("Brain fog 0-10")
-            st.metric("Brain Fog", f"{brain_value:.0f}/10" if not pd.isna(brain_value) else "No data")
-
-        with h3:
-            fatigue_value = latest_health_note.get("Fatigue 0-10")
-            st.metric("Fatigue", f"{fatigue_value:.0f}/10" if not pd.isna(fatigue_value) else "No data")
-
-        with h4:
-            st.metric("Mood", str(latest_health_note.get("Mood", "") or "No data"))
-
-        latest_note_text = str(latest_health_note.get("Symptoms / Notes", "") or "").strip()
-        latest_question_text = str(latest_health_note.get("Questions for clinician", "") or "").strip()
-
-        if latest_note_text:
-            st.caption(f"Latest note: {latest_note_text}")
-
-        if latest_question_text:
-            st.caption(f"Question for clinician: {latest_question_text}")
-    else:
-        st.info("No health notes saved yet.")
-
-    st.divider()
-
-    st.markdown("### Today / Yesterday / Last 3 Days")
-    st.dataframe(today_table, use_container_width=True, hide_index=True)
+    with c5:
+        st.metric("Weight", kg_to_st_lb(latest_weight_kg) if latest_weight_kg is not None else "No data")
 
     st.divider()
 
     left, right = st.columns(2)
 
     with left:
-        simple_bar_chart(
-            sleep_range,
-            "date",
-            "sleep_hours",
-            "Daily Sleep Hours",
-            chart_key="summary_sleep_bar",
+        st.markdown("### Sleep Today, Midnight to Midnight")
+        sleep_timeline_chart(
+            today_sleep,
+            "24 Hour Sleep Timeline",
+            chart_key="today_sleep_timeline",
         )
 
     with right:
-        simple_bar_chart(
-            activity_range,
-            "date",
-            "steps",
-            "Daily Steps",
-            chart_key="summary_steps_bar",
+        st.markdown("### Protein, Carbs and Fat Today")
+        macro_pie_chart(
+            today_protein,
+            today_carbs,
+            today_fat,
+            chart_key="today_macro_pie",
         )
 
     st.divider()
 
-    with st.expander("System / Data Status"):
+    st.markdown("### Food Today")
+
+    today_food_display = prepare_food_table(today_food)
+
+    if today_food_display.empty:
+        st.info("No food has been logged for today yet.")
+    else:
+        st.dataframe(
+            today_food_display,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    st.divider()
+
+    with st.expander("Data status"):
         withings_status = get_withings_status(
             sleep_df=sleep_df,
             activity_df=activity_df,
@@ -3276,15 +3300,6 @@ with tabs[0]:
         st.markdown("#### Withings status")
         st.dataframe(withings_status, use_container_width=True, hide_index=True)
 
-        if not WITHINGS_CLIENT_ID or not WITHINGS_CLIENT_SECRET:
-            st.warning("Missing Client ID or Client Secret in .env / Streamlit Secrets.")
-        elif sleep_df.empty and activity_df.empty and weight_df.empty:
-            st.warning("No Withings sleep, steps or weight data has loaded. Check the API errors above.")
-        elif sleep_df.empty or activity_df.empty or weight_df.empty:
-            st.info("Some Withings data is missing. Check the API errors above.")
-        else:
-            st.success("Withings data is loading.")
-
         st.markdown("#### Food status")
 
         if food_df.empty:
@@ -3294,9 +3309,8 @@ with tabs[0]:
                 st.write("Food files found / uploaded:", ", ".join([os.path.basename(str(f)) for f in food_files]))
 
             if food_parse_messages:
-                with st.expander("Food import messages"):
-                    for message in food_parse_messages:
-                        st.write(message)
+                for message in food_parse_messages:
+                    st.write(message)
         else:
             st.write("Food rows loaded:", len(food_df))
             st.write("Food date range:", food_df["date"].min(), "to", food_df["date"].max())
@@ -3304,26 +3318,129 @@ with tabs[0]:
             st.write("Food files used:", ", ".join([os.path.basename(str(f)) for f in food_files]))
 
             if food_parse_messages:
-                with st.expander("Food import messages"):
-                    for message in food_parse_messages:
-                        st.write(message)
+                for message in food_parse_messages:
+                    st.write(message)
 
-        st.markdown("#### Health notes status")
 
-        if health_notes_df.empty:
-            st.warning("No health notes loaded.")
-        else:
-            st.write("Health note rows loaded:", len(health_notes_df))
+# ============================================================
+# History tab
+# ============================================================
+
+with tabs[1]:
+    st.subheader(f"Summary Last {selected_range_label(history_days)}")
+
+    st.caption(f"{history_start.strftime('%d %b %Y')} to {history_end.strftime('%d %b %Y')}.")
+
+    c1, c2, c3, c4, c5 = st.columns(5)
+
+    with c1:
+        st.metric("Average Daily Steps", fmt_number(history_avg_steps))
+
+    with c2:
+        st.metric("Average Sleep", human_duration_from_hours(history_avg_sleep) if history_avg_sleep is not None else "No data")
+
+    with c3:
+        st.metric("Average Calories", fmt_number(history_avg_calories))
+
+    with c4:
+        st.metric("Average Water", fmt_number(history_avg_water, suffix=" ml"))
+
+    with c5:
+        st.metric("Latest Weight", kg_to_st_lb(latest_weight_kg) if latest_weight_kg is not None else "No data")
+
+    st.divider()
+
+    st.markdown("### Trends")
+
+    h1, h2 = st.columns(2)
+
+    with h1:
+        daily_total_chart(
+            history_activity,
+            "steps",
+            f"Daily Steps Last {selected_range_label(history_days)}",
+            "history_steps_line",
+            chart_type="line",
+        )
+
+    with h2:
+        daily_total_chart(
+            history_sleep,
+            "sleep_hours",
+            f"Sleep Hours Last {selected_range_label(history_days)}",
+            "history_sleep_bar",
+            chart_type="bar",
+        )
+
+    h3, h4 = st.columns(2)
+
+    with h3:
+        daily_total_chart(
+            history_food_daily,
+            "calories",
+            f"Calories Last {selected_range_label(history_days)}",
+            "history_calories_line",
+            chart_type="line",
+        )
+
+    with h4:
+        macro_pie_chart(
+            history_avg_protein,
+            history_avg_carbs,
+            history_avg_fat,
+            chart_key="history_macro_pie",
+        )
+
+    st.divider()
+
+    st.markdown("### Sleep Timing")
+    daily_sleep_timing_chart(
+        history_sleep,
+        f"Sleep Timing Last {selected_range_label(history_days)}",
+        "history_sleep_timing",
+    )
+
+    st.divider()
+
+    st.markdown("### Weight Last Selected Days")
+
+    if history_weight.empty:
+        st.info("No weight data found for this range.")
+    else:
+        weight_chart = history_weight.copy()
+        weight_chart["weight_lb"] = weight_chart["weight_kg"] * 2.2046226218
+        daily_total_chart(
+            weight_chart,
+            "weight_lb",
+            "Weight Trend, lb",
+            "history_weight_line",
+            chart_type="line",
+        )
+
+    st.divider()
+
+    st.markdown("### Food Last Selected Days")
+
+    history_food_display = prepare_food_table(history_food)
+
+    if history_food_display.empty:
+        st.info("No food data found for this range.")
+    else:
+        st.dataframe(
+            history_food_display,
+            use_container_width=True,
+            hide_index=True,
+        )
 
 
 # ============================================================
 # Sleep tab
 # ============================================================
 
-with tabs[1]:
-    st.subheader(f"Sleep ({selected_range_label(main_days)})")
+with tabs[2]:
+    st.subheader(f"Sleep Breakdown ({selected_range_label(history_days)})")
 
-    if sleep_range.empty:
+    if history_sleep.empty:
         st.info("No sleep data found.")
 
         if sleep_error:
@@ -3331,44 +3448,35 @@ with tabs[1]:
     else:
         col1, col2, col3 = st.columns(3)
 
-        best_sleep = sleep_range["sleep_hours"].max()
-        worst_sleep = sleep_range["sleep_hours"].min()
-        days_under_goal = int((sleep_range["sleep_hours"] < goals["sleep_hours"]).sum())
-
         with col1:
-            st.metric("Average Sleep", human_duration_from_hours(avg_sleep))
+            st.metric("Average Sleep", human_duration_from_hours(history_avg_sleep))
 
         with col2:
-            st.metric("Best Sleep", human_duration_from_hours(best_sleep))
+            st.metric("Longest Sleep", human_duration_from_hours(history_sleep["sleep_hours"].max()))
 
         with col3:
-            st.metric("Days Under Goal", days_under_goal)
+            st.metric("Shortest Sleep", human_duration_from_hours(history_sleep["sleep_hours"].min()))
 
-        if avg_sleep is not None and not pd.isna(avg_sleep):
-            sleep_gap = goals["sleep_hours"] - avg_sleep
-
-            if sleep_gap > 0:
-                st.caption(
-                    f"Average sleep is {human_duration_from_hours(sleep_gap)} under your "
-                    f"{human_duration_from_hours(goals['sleep_hours'])} goal."
-                )
-            else:
-                st.caption("Average sleep is meeting your goal.")
-
-        simple_bar_chart(
-            sleep_range,
-            "date",
+        daily_total_chart(
+            history_sleep,
             "sleep_hours",
-            "Daily Sleep",
-            chart_key="sleep_tab_sleep_bar",
+            "Daily Sleep Hours",
+            "sleep_breakdown_daily",
+            chart_type="bar",
         )
 
-        display_sleep = sleep_range.copy()
-        display_sleep["Sleep"] = display_sleep["sleep_hours"].apply(human_duration_short_from_hours)
-        display_sleep["Day"] = pd.to_datetime(display_sleep["date"]).dt.strftime("%a")
-        display_sleep = display_sleep.sort_values("date", ascending=False)
+        daily_sleep_timing_chart(
+            history_sleep,
+            "Sleep Timing by Day",
+            "sleep_breakdown_timing",
+        )
 
         st.markdown("### Sleep Table")
+
+        display_sleep = history_sleep.copy()
+        display_sleep["Day"] = pd.to_datetime(display_sleep["date"]).dt.strftime("%a")
+        display_sleep["Sleep"] = display_sleep["sleep_hours"].apply(human_duration_short_from_hours)
+        display_sleep = display_sleep.sort_values("date", ascending=False)
 
         st.dataframe(
             display_sleep[["date", "Day", "Sleep", "start_time", "end_time"]],
@@ -3381,10 +3489,10 @@ with tabs[1]:
 # Steps tab
 # ============================================================
 
-with tabs[2]:
-    st.subheader(f"Steps ({selected_range_label(main_days)})")
+with tabs[3]:
+    st.subheader(f"Daily Steps ({selected_range_label(history_days)})")
 
-    if activity_range.empty:
+    if history_activity.empty:
         st.info("No step data found.")
 
         if activity_error:
@@ -3392,36 +3500,24 @@ with tabs[2]:
     else:
         col1, col2, col3 = st.columns(3)
 
-        best_steps = activity_range["steps"].max()
-        worst_steps = activity_range["steps"].min()
-        days_above_goal = int((activity_range["steps"] >= goals["steps"]).sum())
-
         with col1:
-            st.metric("Average Steps", f"{avg_steps:,.0f}")
+            st.metric("Average Steps", fmt_number(history_avg_steps))
 
         with col2:
-            st.metric("Best Day", f"{best_steps:,.0f}")
+            st.metric("Best Day", fmt_number(history_activity["steps"].max()))
 
         with col3:
-            st.metric("Days On Target", days_above_goal)
+            st.metric("Lowest Day", fmt_number(history_activity["steps"].min()))
 
-        if avg_steps is not None and not pd.isna(avg_steps):
-            step_gap = goals["steps"] - avg_steps
-
-            if step_gap > 0:
-                st.caption(f"Average steps are {step_gap:,.0f} below your {goals['steps']:,.0f} step goal.")
-            else:
-                st.caption("Average steps are meeting your goal.")
-
-        simple_bar_chart(
-            activity_range,
-            "date",
+        daily_total_chart(
+            history_activity,
             "steps",
             "Daily Steps",
-            chart_key="steps_tab_steps_bar",
+            "steps_breakdown_line",
+            chart_type="line",
         )
 
-        display_steps = activity_range.copy()
+        display_steps = history_activity.copy()
         display_steps["Day"] = pd.to_datetime(display_steps["date"]).dt.strftime("%a")
         display_steps = display_steps.sort_values("date", ascending=False)
 
@@ -3433,60 +3529,130 @@ with tabs[2]:
 
 
 # ============================================================
+# Food tab
+# ============================================================
+
+with tabs[4]:
+    st.subheader(f"Food, Calories and Water ({selected_range_label(history_days)})")
+
+    if food_df.empty:
+        st.info(
+            "No usable food data found yet. Upload a MyNetDiary export, or check that the saved file has Date, Food, Calories, Protein, Carbs and Fat columns."
+        )
+
+        if food_files:
+            with st.expander("Food files found / uploaded"):
+                for file in food_files:
+                    st.write(os.path.basename(str(file)))
+
+        if food_parse_messages:
+            with st.expander("Food import messages"):
+                for message in food_parse_messages:
+                    st.write(message)
+    elif history_food_daily.empty:
+        st.info("Food files were found, but there is no food data in the selected date range.")
+    else:
+        c1, c2, c3, c4, c5 = st.columns(5)
+
+        with c1:
+            st.metric("Average Calories", fmt_number(history_avg_calories))
+
+        with c2:
+            st.metric("Average Protein", fmt_number(history_avg_protein, suffix="g"))
+
+        with c3:
+            st.metric("Average Carbs", fmt_number(history_avg_carbs, suffix="g"))
+
+        with c4:
+            st.metric("Average Fat", fmt_number(history_avg_fat, suffix="g"))
+
+        with c5:
+            st.metric("Average Water", fmt_number(history_avg_water, suffix=" ml"))
+
+        left, right = st.columns(2)
+
+        with left:
+            daily_total_chart(
+                history_food_daily,
+                "calories",
+                "Daily Calories",
+                "food_breakdown_calories",
+                chart_type="bar",
+            )
+
+        with right:
+            macro_pie_chart(
+                history_avg_protein,
+                history_avg_carbs,
+                history_avg_fat,
+                chart_key="food_breakdown_macro",
+            )
+
+        if "fluid_ml" in history_food_daily.columns:
+            daily_total_chart(
+                history_food_daily,
+                "fluid_ml",
+                "Daily Water / Fluid ml",
+                "food_breakdown_water",
+                chart_type="bar",
+            )
+
+        st.divider()
+
+        st.markdown("### Food Table")
+
+        display_food = prepare_food_table(history_food.sort_values("date", ascending=False))
+
+        st.dataframe(
+            display_food,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+
+# ============================================================
 # Weight tab
 # ============================================================
 
-with tabs[3]:
-    st.subheader(f"Weight ({selected_range_label(weight_days)})")
+with tabs[5]:
+    st.subheader(f"Weight ({selected_range_label(history_days)})")
 
-    if weight_range.empty:
+    if history_weight.empty:
         st.info("No weight data found.")
 
         if weight_error:
             st.warning(f"Weight API message: {weight_error}")
     else:
-        w = weight_range.sort_values("date")
+        w = history_weight.sort_values("date")
 
         start_weight = w.iloc[0]["weight_kg"]
         end_weight = w.iloc[-1]["weight_kg"]
-
         diff_kg = end_weight - start_weight
         diff_lb = diff_kg * 2.2046226218
 
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3 = st.columns(3)
 
         with col1:
             st.metric("Start Weight", kg_to_st_lb(start_weight))
 
         with col2:
-            st.metric("Current Weight", kg_to_st_lb(end_weight))
+            st.metric("Latest Weight", kg_to_st_lb(end_weight))
 
         with col3:
             st.metric("Change", pounds_to_st_lb_change(diff_lb), delta=f"{diff_lb:+.1f}lb")
 
-        with col4:
-            st.metric("Target", f"{goals['target_weight_stones']:.1f} stone")
+        weight_chart = history_weight.copy()
+        weight_chart["weight_lb"] = weight_chart["weight_kg"] * 2.2046226218
 
-        target_kg = stones_to_kg(goals["target_weight_stones"])
-        over_target_lb = (end_weight - target_kg) * 2.2046226218
-
-        if over_target_lb > 0:
-            st.caption(f"Current weight is {over_target_lb:.1f}lb above your target.")
-        else:
-            st.caption(f"Current weight is {abs(over_target_lb):.1f}lb below your target.")
-
-        chart_weight = weight_range.copy()
-        chart_weight["weight_lb"] = chart_weight["weight_kg"] * 2.2046226218
-
-        simple_line_chart(
-            chart_weight,
-            "date",
+        daily_total_chart(
+            weight_chart,
             "weight_lb",
             "Weight Trend, lb",
-            chart_key="weight_tab_weight_line",
+            "weight_breakdown_line",
+            chart_type="line",
         )
 
-        display_weight = weight_range.copy()
+        display_weight = history_weight.copy()
         display_weight["Day"] = pd.to_datetime(display_weight["date"]).dt.strftime("%a")
         display_weight["kg"] = display_weight["weight_kg"].round(2)
         display_weight["stone_lb"] = display_weight["weight_kg"].apply(kg_to_st_lb)
@@ -3499,619 +3665,3 @@ with tabs[3]:
             use_container_width=True,
             hide_index=True,
         )
-
-
-# ============================================================
-# Food tab
-# ============================================================
-
-with tabs[4]:
-    st.subheader(f"Food ({selected_range_label(main_days)})")
-
-    if food_df.empty:
-        st.info(
-            "No usable food data found yet. The file may be found, but the columns may not be readable. "
-            "Try opening the MyNetDiary export and checking whether it has Date, Food, Calories, Protein, Carbs and Fat columns."
-        )
-
-        if food_files:
-            with st.expander("Food files found / uploaded"):
-                for file in food_files:
-                    st.write(os.path.basename(str(file)))
-
-        if food_parse_messages:
-            with st.expander("Food import messages"):
-                for message in food_parse_messages:
-                    st.write(message)
-    else:
-        if food_files:
-            with st.expander("Food files found / uploaded"):
-                for file in food_files:
-                    st.write(os.path.basename(str(file)))
-
-        if food_parse_messages:
-            with st.expander("Food import messages"):
-                for message in food_parse_messages:
-                    st.write(message)
-
-        with st.expander("Food data debug"):
-            food_logged_days = food_df["date"].nunique()
-            selected_food_logged_days = food_range["date"].nunique() if not food_range.empty else 0
-
-            st.write("Rows loaded:", len(food_df))
-            st.write("Days with food logged:", food_logged_days)
-            st.write("Days with food logged in selected range:", selected_food_logged_days)
-            st.write("Date range loaded:", food_df["date"].min(), "to", food_df["date"].max())
-            st.write("Columns loaded:", list(food_df.columns))
-
-        if food_daily_range.empty:
-            st.info("Food files were found, but there is no food data in the selected date range.")
-        else:
-            logged_days_in_range = food_daily_range["date"].nunique()
-
-            col1, col2, col3, col4 = st.columns(4)
-
-            with col1:
-                st.metric("Average Calories", f"{avg_calories:,.0f}")
-
-            with col2:
-                protein_delta = f"{protein_change:+.0f}g" if protein_change is not None else None
-                st.metric("Average Protein", f"{avg_protein:.0f}g", delta=protein_delta)
-
-            with col3:
-                st.metric("Average Carbs", f"{avg_carbs:.0f}g")
-
-            with col4:
-                st.metric("Average Fat", f"{avg_fat:.0f}g")
-
-            st.caption(
-                f"Protein target: {goals['protein_g']}g per day. "
-                f"Calorie budget: {goals['calories']} kcal per day. "
-                f"Averages are based on {logged_days_in_range} logged food day(s) in this selected range."
-            )
-
-            left, right = st.columns(2)
-
-            with left:
-                simple_bar_chart(
-                    food_daily_range,
-                    "date",
-                    "calories",
-                    "Daily Calories",
-                    chart_key="food_tab_calories_bar",
-                )
-
-            with right:
-                macro_pie_chart(
-                    avg_protein,
-                    avg_carbs,
-                    avg_fat,
-                    chart_key="food_tab_macro_pie",
-                )
-
-            st.divider()
-
-            st.markdown("### Typical Food Day From Selected Range")
-
-            typical = build_typical_food_day(food_range)
-
-            if not typical:
-                st.info("Not enough food item detail available for a typical food day.")
-            else:
-                for meal, foods in typical.items():
-                    if foods.empty:
-                        continue
-
-                    st.markdown(f"#### {meal}")
-
-                    food_lines = []
-
-                    for _, row in foods.iterrows():
-                        food_name = str(row["food"])
-                        avg_cals = safe_float(row["avg_calories"])
-                        avg_pro = safe_float(row["avg_protein"])
-                        seen = safe_int(row["times_seen"])
-
-                        food_lines.append(
-                            f"- {food_name}, seen {seen} times, approx {avg_cals:.0f} kcal, {avg_pro:.0f}g protein"
-                        )
-
-                    st.markdown("\n".join(food_lines))
-
-            st.divider()
-
-            st.markdown("### Food Table")
-
-            display_food = food_range.copy()
-            display_food = display_food.sort_values("date", ascending=False)
-
-            st.dataframe(
-                display_food[
-                    [
-                        "date",
-                        "meal",
-                        "food",
-                        "calories",
-                        "protein_g",
-                        "carbs_g",
-                        "fat_g",
-                        "sugar_g",
-                    ]
-                ],
-                use_container_width=True,
-                hide_index=True,
-            )
-
-
-# ============================================================
-# Hospital tab
-# ============================================================
-
-with tabs[5]:
-    st.subheader("Hospital Summary")
-
-    st.caption("A cleaner copy-and-paste overview for hospital, GP, pain clinic, dietitian or transplant review.")
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.metric(
-            "Average Sleep",
-            human_duration_short_from_hours(avg_sleep) if avg_sleep is not None and not pd.isna(avg_sleep) else "No data",
-            delta=f"{sleep_change:+.2f} hrs" if sleep_change is not None else None,
-        )
-        st.caption(sleep_status)
-
-    with col2:
-        st.metric(
-            "Average Steps",
-            f"{avg_steps:,.0f}" if avg_steps is not None and not pd.isna(avg_steps) else "No data",
-            delta=f"{steps_change:+,.0f}" if steps_change is not None else None,
-        )
-        st.caption(steps_status)
-
-    with col3:
-        st.metric(
-            "Current Weight",
-            kg_to_st_lb(latest_weight_kg) if latest_weight_kg is not None else "No data",
-            delta=f"{weight_change_lb:+.1f}lb" if weight_change_lb is not None else None,
-        )
-        st.caption(weight_status)
-
-    with col4:
-        st.metric(
-            "Average Protein",
-            f"{avg_protein:.0f}g" if avg_protein is not None and not pd.isna(avg_protein) else "No data",
-            delta=f"{protein_change:+.0f}g" if protein_change is not None else None,
-        )
-        st.caption(protein_status)
-
-    st.divider()
-
-    st.markdown("### Today / Yesterday / Last 3 Days")
-    st.dataframe(today_table, use_container_width=True, hide_index=True)
-
-    st.divider()
-
-    st.markdown("### Copy-and-Paste Hospital Summary")
-
-    hospital_summary = build_hospital_summary(
-        start_date=main_start,
-        end_date=main_end,
-        goals=goals,
-        sleep_range=sleep_range,
-        activity_range=activity_range,
-        weight_range=weight_range,
-        food_daily_range=food_daily_range,
-        sleep_change=sleep_change,
-        steps_change=steps_change,
-        weight_change_lb=weight_change_lb,
-        protein_change=protein_change,
-        health_notes_df=health_notes_df,
-    )
-
-    st.text_area(
-        "Hospital summary text",
-        hospital_summary,
-        height=460,
-        key="hospital_summary_text",
-    )
-
-    st.divider()
-
-    st.markdown("### Extra Notes For Appointment")
-
-    extra_notes = st.text_area(
-        "Type any extra symptoms, concerns or questions here",
-        placeholder=(
-            "Example: Brain fog has been worse this week. Sleep has been poor. "
-            "Pain levels remain high. I would like to ask about the iron infusion and pain clinic referral."
-        ),
-        height=150,
-        key="hospital_extra_notes",
-    )
-
-    if extra_notes.strip():
-        st.markdown("### Summary With Extra Notes")
-
-        st.text_area(
-            "Copy this version",
-            hospital_summary + "\n\nAdditional notes:\n" + extra_notes.strip(),
-            height=520,
-            key="hospital_summary_with_notes",
-        )
-
-
-# ============================================================
-# Health Notes tab
-# ============================================================
-
-with tabs[6]:
-    st.subheader("Health Notes")
-
-    st.caption(
-        "Track pain, brain fog, fatigue, mood, sleep quality and appointment questions. "
-        "Saved locally and backed up to Google Drive."
-    )
-
-    st.markdown("### Quick Add / Update Today")
-
-    q1, q2, q3, q4 = st.columns(4)
-
-    with q1:
-        quick_pain = st.number_input("Pain 0-10", min_value=0, max_value=10, value=0, step=1, key="quick_pain")
-
-    with q2:
-        quick_brain_fog = st.number_input("Brain fog 0-10", min_value=0, max_value=10, value=0, step=1, key="quick_brain_fog")
-
-    with q3:
-        quick_fatigue = st.number_input("Fatigue 0-10", min_value=0, max_value=10, value=0, step=1, key="quick_fatigue")
-
-    with q4:
-        quick_mood = st.text_input("Mood", value="", key="quick_mood")
-
-    quick_sleep_quality = st.text_input("Sleep quality", value="", key="quick_sleep_quality")
-    quick_notes = st.text_area("Symptoms / Notes", value="", height=100, key="quick_notes")
-    quick_questions = st.text_area("Questions for clinician", value="", height=80, key="quick_questions")
-
-    if st.button("Add / update today's health note", key="add_today_health_note"):
-        new_row = {
-            "Date": date.today().strftime("%Y-%m-%d"),
-            "Pain 0-10": quick_pain,
-            "Brain fog 0-10": quick_brain_fog,
-            "Fatigue 0-10": quick_fatigue,
-            "Mood": quick_mood,
-            "Sleep quality": quick_sleep_quality,
-            "Symptoms / Notes": quick_notes,
-            "Questions for clinician": quick_questions,
-        }
-
-        health_notes_df = add_or_update_today_health_note(health_notes_df, new_row)
-        st.success("Today's health note has been added or updated. Refresh the app to see it everywhere.")
-
-    st.divider()
-
-    st.markdown("### Symptom Summary")
-
-    if health_notes_chart_df.empty:
-        st.info("No symptom scores saved yet.")
-    else:
-        s1, s2, s3, s4 = st.columns(4)
-
-        with s1:
-            avg_pain = health_notes_chart_df["Pain 0-10"].mean()
-            st.metric("Average Pain", f"{avg_pain:.1f}/10" if not pd.isna(avg_pain) else "No data")
-
-        with s2:
-            avg_brain = health_notes_chart_df["Brain fog 0-10"].mean()
-            st.metric("Average Brain Fog", f"{avg_brain:.1f}/10" if not pd.isna(avg_brain) else "No data")
-
-        with s3:
-            avg_fatigue = health_notes_chart_df["Fatigue 0-10"].mean()
-            st.metric("Average Fatigue", f"{avg_fatigue:.1f}/10" if not pd.isna(avg_fatigue) else "No data")
-
-        with s4:
-            st.metric("Days Logged", health_notes_chart_df["date"].nunique())
-
-        st.divider()
-
-        c1, c2 = st.columns(2)
-
-        with c1:
-            health_notes_line_chart(
-                health_notes_chart_df,
-                "Pain 0-10",
-                "Pain Trend",
-                "health_pain_chart",
-            )
-
-            health_notes_line_chart(
-                health_notes_chart_df,
-                "Fatigue 0-10",
-                "Fatigue Trend",
-                "health_fatigue_chart",
-            )
-
-        with c2:
-            health_notes_line_chart(
-                health_notes_chart_df,
-                "Brain fog 0-10",
-                "Brain Fog Trend",
-                "health_brain_fog_chart",
-            )
-
-            st.markdown("### Symptom Summary For Appointments")
-            st.text_area(
-                "Copy symptom summary",
-                symptom_summary_text(health_notes_df),
-                height=220,
-                key="symptom_summary_copy",
-            )
-
-    st.divider()
-
-    st.markdown("### Edit Health Notes")
-
-    edited_health_notes = st.data_editor(
-        health_notes_df,
-        use_container_width=True,
-        num_rows="dynamic",
-        hide_index=True,
-        key="health_notes_editor",
-    )
-
-    if st.button("Save health notes", key="save_health_notes_button"):
-        save_health_notes(edited_health_notes)
-        st.success("Health notes saved and cleaned.")
-
-    st.divider()
-
-    st.markdown("### Copy Recent Health Notes")
-
-    recent_notes_copy = recent_health_notes_text(edited_health_notes, limit=10)
-
-    st.text_area(
-        "Recent health notes copy version",
-        recent_notes_copy if recent_notes_copy.strip() else "No recent health notes entered yet.",
-        height=300,
-        key="recent_health_notes_copy",
-    )
-
-
-# ============================================================
-# Medication tab
-# ============================================================
-
-with tabs[7]:
-    st.subheader("Medication List")
-
-    st.caption(
-        "This is a simple medication list for appointments. "
-        "It is saved locally and backed up to Google Drive. "
-        "Please check it against your prescription labels or clinical letters before sending it anywhere."
-    )
-
-    meds_df = load_medications()
-
-    edited_meds = st.data_editor(
-        meds_df,
-        use_container_width=True,
-        num_rows="dynamic",
-        hide_index=True,
-        key="medication_editor",
-    )
-
-    if st.button("Save medication list", key="save_medication_button"):
-        save_medications(edited_meds)
-        st.success("Medication list saved.")
-
-    st.divider()
-
-    st.markdown("### Appointment Copy Version")
-
-    if not edited_meds.empty:
-        lines = []
-
-        for _, row in edited_meds.sort_values("Medication").iterrows():
-            medication = row.get("Medication", "")
-            dose = row.get("Dose", "")
-            when = row.get("When", "")
-            purpose = row.get("What it is for", "")
-            notes = row.get("Notes", "")
-
-            line = f"- {medication}, {dose}, {when}"
-
-            if purpose:
-                line += f", for {purpose}"
-
-            if notes:
-                line += f". Notes: {notes}"
-
-            lines.append(line)
-
-        st.text_area(
-            "Copy medication list",
-            "\n".join(lines),
-            height=300,
-            key="medication_copy_text",
-        )
-
-
-# ============================================================
-# Appointments tab
-# ============================================================
-
-with tabs[8]:
-    st.subheader("Appointments")
-
-    st.caption("Use this to keep short appointment summaries and follow-up actions in one place. Saved locally and backed up to Google Drive.")
-
-    appt_df = load_appointments()
-
-    edited_appts = st.data_editor(
-        appt_df,
-        use_container_width=True,
-        num_rows="dynamic",
-        hide_index=True,
-        key="appointments_editor",
-    )
-
-    if st.button("Save appointments", key="save_appointments_button"):
-        save_appointments(edited_appts)
-        st.success("Appointments saved.")
-
-    st.divider()
-
-    st.markdown("### Appointment Summary Copy Version")
-
-    if not edited_appts.empty:
-        try:
-            edited_appts["Date_sort"] = pd.to_datetime(edited_appts["Date"], errors="coerce")
-            display_appts = edited_appts.sort_values("Date_sort", ascending=False)
-        except Exception:
-            display_appts = edited_appts.copy()
-
-        appointment_lines = []
-
-        for _, row in display_appts.iterrows():
-            appt_date = row.get("Date", "")
-            clinic = row.get("Clinic / Service", "")
-            location = row.get("Location", "")
-            summary = row.get("Summary", "")
-            actions = row.get("Follow up / Actions", "")
-
-            appointment_lines.append(
-                f"{appt_date}, {clinic}, {location}\n"
-                f"Summary: {summary}\n"
-                f"Follow up / Actions: {actions}\n"
-            )
-
-        st.text_area(
-            "Copy appointment summaries",
-            "\n".join(appointment_lines),
-            height=350,
-            key="appointment_copy_text",
-        )
-
-
-# ============================================================
-# Goals tab
-# ============================================================
-
-with tabs[9]:
-    st.subheader("Goals")
-
-    st.caption("These goals are saved locally, backed up to Google Drive and used for the small traffic light status checks.")
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        goals["sleep_hours"] = st.number_input(
-            "Sleep goal, hours",
-            min_value=1.0,
-            max_value=12.0,
-            value=float(goals["sleep_hours"]),
-            step=0.25,
-            key="goal_sleep_hours",
-        )
-
-        goals["steps"] = st.number_input(
-            "Steps goal",
-            min_value=0,
-            max_value=50000,
-            value=int(goals["steps"]),
-            step=500,
-            key="goal_steps",
-        )
-
-        goals["fluids_l"] = st.number_input(
-            "Fluid goal, litres",
-            min_value=0.0,
-            max_value=6.0,
-            value=float(goals["fluids_l"]),
-            step=0.25,
-            key="goal_fluids_l",
-        )
-
-    with col2:
-        goals["calories"] = st.number_input(
-            "Calorie budget",
-            min_value=500,
-            max_value=5000,
-            value=int(goals["calories"]),
-            step=50,
-            key="goal_calories",
-        )
-
-        goals["protein_g"] = st.number_input(
-            "Protein goal, grams",
-            min_value=0,
-            max_value=300,
-            value=int(goals["protein_g"]),
-            step=5,
-            key="goal_protein_g",
-        )
-
-        goals["target_weight_stones"] = st.number_input(
-            "Target weight, stone",
-            min_value=5.0,
-            max_value=35.0,
-            value=float(goals["target_weight_stones"]),
-            step=0.5,
-            key="goal_target_weight_stones",
-        )
-
-    with col3:
-        goals["carbs_pct"] = st.number_input(
-            "Carbs target %",
-            min_value=0,
-            max_value=100,
-            value=int(goals["carbs_pct"]),
-            step=5,
-            key="goal_carbs_pct",
-        )
-
-        goals["protein_pct"] = st.number_input(
-            "Protein target %",
-            min_value=0,
-            max_value=100,
-            value=int(goals["protein_pct"]),
-            step=5,
-            key="goal_protein_pct",
-        )
-
-        goals["fat_pct"] = st.number_input(
-            "Fat target %",
-            min_value=0,
-            max_value=100,
-            value=int(goals["fat_pct"]),
-            step=5,
-            key="goal_fat_pct",
-        )
-
-    total_macro = goals["carbs_pct"] + goals["protein_pct"] + goals["fat_pct"]
-
-    if total_macro != 100:
-        st.warning(f"Macro targets currently add up to {total_macro}%. Ideally they should add up to 100%.")
-    else:
-        st.success("Macro targets add up to 100%.")
-
-    if st.button("Save goals", key="save_goals_button"):
-        save_json_file(GOALS_FILE, goals)
-        st.success("Goals saved. Refresh the app to apply them everywhere.")
-
-    st.divider()
-
-    st.markdown("### Current Goal Summary")
-
-    st.write(f"Sleep: {human_duration_from_hours(goals['sleep_hours'])}")
-    st.write(f"Steps: {goals['steps']:,} per day")
-    st.write(f"Calories: {goals['calories']:,} kcal per day")
-    st.write(f"Protein: {goals['protein_g']}g per day")
-    st.write(
-        f"Macros: Carbs {goals['carbs_pct']}%, "
-        f"Protein {goals['protein_pct']}%, "
-        f"Fat {goals['fat_pct']}%"
-    )
-    st.write(f"Fluids: {goals['fluids_l']}L per day")
-    st.write(f"Target weight: {goals['target_weight_stones']:.1f} stone")
