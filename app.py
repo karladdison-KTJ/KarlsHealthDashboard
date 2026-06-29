@@ -48,7 +48,7 @@ st.set_page_config(
 # ============================================================
 
 APP_TITLE = "Karl's Health Dashboard"
-APP_VERSION = "v1.4"
+APP_VERSION = "v1.3"
 APP_REVIEW_DATE = "29-06-26"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -477,69 +477,56 @@ st.markdown(
     """
     <style>
         .block-container {
-            padding-top: 0.75rem !important;
-            padding-bottom: 1.4rem !important;
-            padding-left: 0.75rem !important;
-            padding-right: 0.75rem !important;
+            padding-top: 1.1rem !important;
+            padding-bottom: 2rem !important;
+            padding-left: 1.15rem !important;
+            padding-right: 1.15rem !important;
         }
 
         h1 {
-            font-size: clamp(1.55rem, 6vw, 2.45rem) !important;
-            line-height: 1.02 !important;
-            margin-bottom: 0.2rem !important;
+            font-size: clamp(2.05rem, 8vw, 3rem) !important;
+            line-height: 1.04 !important;
+            margin-bottom: 0.35rem !important;
         }
 
         h2, h3 {
-            line-height: 1.05 !important;
-            margin-top: 0.35rem !important;
-            margin-bottom: 0.25rem !important;
-        }
-
-        h2 { font-size: clamp(1.18rem, 4.8vw, 1.65rem) !important; }
-        h3 { font-size: clamp(1rem, 4vw, 1.28rem) !important; }
-
-        div[data-testid="stMetric"] {
-            padding: 0 !important;
-            background: rgba(128,128,128,0.035);
-            border: 1px solid rgba(128,128,128,0.14);
-            border-radius: 10px;
-            padding: 0.45rem 0.55rem !important;
-            margin-bottom: 0.25rem !important;
-        }
-
-        div[data-testid="stMetric"] label {
-            font-size: 0.72rem !important;
-        }
-
-        div[data-testid="stMetric"] [data-testid="stMetricValue"] {
-            font-size: clamp(1.05rem, 5vw, 1.7rem) !important;
-            line-height: 1.02 !important;
-        }
-
-        div[data-testid="stMetric"] [data-testid="stMetricDelta"] {
-            font-size: 0.7rem !important;
-        }
-
-        div[data-testid="stTabs"] button {
-            padding: 0.32rem 0.45rem !important;
-            font-size: 0.78rem !important;
-        }
-
-        div[data-testid="stHorizontalBlock"] {
-            gap: 0.45rem !important;
-        }
-
-        hr {
-            margin-top: 0.45rem !important;
+            line-height: 1.08 !important;
+            margin-top: 0.65rem !important;
             margin-bottom: 0.45rem !important;
         }
 
-        .stCaptionContainer, .stMarkdown p {
-            font-size: 0.8rem !important;
+        h2 { font-size: clamp(1.55rem, 6vw, 2.1rem) !important; }
+        h3 { font-size: clamp(1.2rem, 4.8vw, 1.55rem) !important; }
+
+        div[data-testid="stMetric"] {
+            padding: 0.15rem 0 !important;
+        }
+
+        div[data-testid="stMetric"] label {
+            font-size: 0.82rem !important;
+        }
+
+        div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+            font-size: clamp(1.55rem, 7vw, 2.2rem) !important;
+            line-height: 1.05 !important;
+        }
+
+        div[data-testid="stTabs"] button {
+            padding: 0.45rem 0.55rem !important;
+            font-size: 0.92rem !important;
+        }
+
+        div[data-testid="stHorizontalBlock"] {
+            gap: 0.8rem !important;
+        }
+
+        hr {
+            margin-top: 0.8rem !important;
+            margin-bottom: 0.8rem !important;
         }
 
         div[data-testid="stDataFrame"] {
-            font-size: 0.72rem !important;
+            font-size: 0.82rem !important;
         }
 
         /* Hide Streamlit heading anchor/link icons to keep the iPhone view cleaner. */
@@ -549,22 +536,21 @@ st.markdown(
 
         @media (max-width: 700px) {
             .block-container {
-                padding-left: 0.55rem !important;
-                padding-right: 0.55rem !important;
+                padding-left: 1rem !important;
+                padding-right: 1rem !important;
             }
 
             h1 {
-                font-size: 1.72rem !important;
-                white-space: nowrap !important;
+                font-size: 2.25rem !important;
             }
 
-            .stCaptionContainer, .stMarkdown p {
-                font-size: 0.76rem !important;
+            .stMarkdown p, .stCaptionContainer {
+                font-size: 0.9rem !important;
             }
 
             div[data-testid="column"] {
-                min-width: calc(50% - 0.35rem) !important;
-                flex: 1 1 calc(50% - 0.35rem) !important;
+                width: 100% !important;
+                flex: 1 1 100% !important;
             }
         }
     </style>
@@ -641,12 +627,12 @@ def human_duration_from_hours(hours):
     m = total_minutes % 60
 
     if h <= 0:
-        return f"{m}m"
+        return f"{m} minutes"
 
     if m == 0:
-        return f"{h}hrs"
+        return f"{h} hours"
 
-    return f"{h}hrs {m}m"
+    return f"{h} hours {m} minutes"
 
 
 def human_duration_short_from_hours(hours):
@@ -657,7 +643,7 @@ def human_duration_short_from_hours(hours):
     h = total_minutes // 60
     m = total_minutes % 60
 
-    return f"{h}hrs {m}m"
+    return f"{h}h {m}m"
 
 
 def kg_to_st_lb(kg):
@@ -839,7 +825,7 @@ def simple_bar_chart(df, x, y, title, chart_key=None):
         return
 
     fig = px.bar(df, x=x, y=y, title=title)
-    fig.update_layout(height=235, margin=dict(l=6, r=6, t=30, b=4))
+    fig.update_layout(height=280, margin=dict(l=10, r=10, t=40, b=10))
 
     if chart_key is None:
         chart_key = f"bar_{title}_{x}_{y}"
@@ -853,7 +839,7 @@ def simple_line_chart(df, x, y, title, chart_key=None):
         return
 
     fig = px.line(df, x=x, y=y, markers=True, title=title)
-    fig.update_layout(height=235, margin=dict(l=6, r=6, t=30, b=4))
+    fig.update_layout(height=280, margin=dict(l=10, r=10, t=40, b=10))
 
     if chart_key is None:
         chart_key = f"line_{title}_{x}_{y}"
@@ -938,26 +924,26 @@ def macro_pie_chart(protein, carbs, fat, chart_key=None):
 
     html = f"""
     <div style="display:flex; align-items:center; justify-content:space-between; gap:1.5rem; flex-wrap:wrap; margin-top:0.25rem;">
-        <div style="position:relative; width:230px; min-width:210px; height:180px;">
-            <div style="position:absolute; left:0px; top:0px; color:{colors['fat']}; font-size:1.35rem; font-weight:600; line-height:1;">{fat_pct}%</div>
-            <div style="position:absolute; left:12px; bottom:8px; color:{colors['protein']}; font-size:1.35rem; font-weight:600; line-height:1;">{protein_pct}%</div>
-            <div style="position:absolute; right:0px; top:0px; color:{colors['carbs']}; font-size:1.35rem; font-weight:600; line-height:1;">{carbs_pct}%</div>
-            <svg viewBox="0 0 300 300" style="position:absolute; left:31px; top:14px; width:145px; height:145px; overflow:visible;">
+        <div style="position:relative; width:300px; min-width:240px; height:238px;">
+            <div style="position:absolute; left:0px; top:0px; color:{colors['fat']}; font-size:1.9rem; font-weight:600; line-height:1;">{fat_pct}%</div>
+            <div style="position:absolute; left:12px; bottom:8px; color:{colors['protein']}; font-size:1.9rem; font-weight:600; line-height:1;">{protein_pct}%</div>
+            <div style="position:absolute; right:0px; top:0px; color:{colors['carbs']}; font-size:1.9rem; font-weight:600; line-height:1;">{carbs_pct}%</div>
+            <svg viewBox="0 0 300 300" style="position:absolute; left:35px; top:16px; width:190px; height:190px; overflow:visible;">
                 {svg}
             </svg>
         </div>
         <div style="flex:1; min-width:240px; max-width:420px;">
-            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.25rem; gap:1rem;">
-                <div style="color:{colors['carbs']}; font-size:1.1rem; font-weight:500; line-height:1.1;">T. Carbs</div>
-                <div style="color:{colors['value']}; font-size:1.05rem; font-weight:600; line-height:1.1;">{format_grams(carbs_value)}</div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.55rem; gap:1rem;">
+                <div style="color:{colors['carbs']}; font-size:1.55rem; font-weight:500; line-height:1.1;">T. Carbs</div>
+                <div style="color:{colors['value']}; font-size:1.45rem; font-weight:600; line-height:1.1;">{format_grams(carbs_value)}</div>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.25rem; gap:1rem;">
-                <div style="color:{colors['protein']}; font-size:1.1rem; font-weight:500; line-height:1.1;">Protein</div>
-                <div style="color:{colors['value']}; font-size:1.05rem; font-weight:600; line-height:1.1;">{format_grams(protein_value)}</div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.55rem; gap:1rem;">
+                <div style="color:{colors['protein']}; font-size:1.55rem; font-weight:500; line-height:1.1;">Protein</div>
+                <div style="color:{colors['value']}; font-size:1.45rem; font-weight:600; line-height:1.1;">{format_grams(protein_value)}</div>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:baseline; gap:1rem;">
-                <div style="color:{colors['fat']}; font-size:1.1rem; font-weight:500; line-height:1.1;">Fat</div>
-                <div style="color:{colors['value']}; font-size:1.05rem; font-weight:600; line-height:1.1;">{format_grams(fat_value)}</div>
+                <div style="color:{colors['fat']}; font-size:1.55rem; font-weight:500; line-height:1.1;">Fat</div>
+                <div style="color:{colors['value']}; font-size:1.45rem; font-weight:600; line-height:1.1;">{format_grams(fat_value)}</div>
             </div>
         </div>
     </div>
@@ -982,7 +968,7 @@ def health_notes_line_chart(df, y_col, title, chart_key):
 
     fig = px.line(temp, x="date", y=y_col, markers=True, title=title)
     fig.update_yaxes(range=[0, 10])
-    fig.update_layout(height=230, margin=dict(l=6, r=6, t=30, b=4))
+    fig.update_layout(height=270, margin=dict(l=10, r=10, t=38, b=10))
 
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
@@ -2956,7 +2942,7 @@ handle_withings_callback()
 # ============================================================
 
 st.title(APP_TITLE)
-st.caption(f"{APP_VERSION} reviewed {APP_REVIEW_DATE} · Today · History · Sleep · Steps · Food · Weight")
+st.caption(f"{APP_VERSION} reviewed {APP_REVIEW_DATE} · Daily health dashboard showing today, recent history, sleep, steps, food and weight.")
 
 with st.sidebar:
     if st.button("Lock dashboard on this device", use_container_width=True):
@@ -3321,11 +3307,17 @@ def prepare_food_table(food_table):
         "date": "Date",
         "meal": "Meal",
         "food": "Food",
+        "protein_g": "Protein",
+        "calories": "Calories",
     }
 
-    # Keep the phone table very compact.
-    cols = [c for c in ["date", "meal", "food"] if c in display.columns]
+    # Keep the food table simple: no carbs, fat, sugar or water columns.
+    cols = [c for c in ["date", "meal", "food", "protein_g", "calories"] if c in display.columns]
     display = display[cols].rename(columns=rename_map)
+
+    for col in ["Protein", "Calories"]:
+        if col in display.columns:
+            display[col] = pd.to_numeric(display[col], errors="coerce").round(0)
 
     return display
 
@@ -3400,7 +3392,7 @@ def sleep_timeline_chart(sleep_table, title, chart_key):
         ticktext=[f"{h:02d}:00" for h in range(0, 24, 4)],
     )
     fig.update_yaxes(range=[0, 60])
-    fig.update_layout(height=230, margin=dict(l=6, r=6, t=30, b=4))
+    fig.update_layout(height=270, margin=dict(l=10, r=10, t=38, b=10))
 
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
@@ -3460,7 +3452,7 @@ def daily_sleep_timing_chart(sleep_table, title, chart_key):
         tickvals=list(range(0, 25, 2)),
         ticktext=[f"{h:02d}:00" for h in range(0, 25, 2)],
     )
-    fig.update_layout(height=max(240, 24 * len(chart_df["date_label"].unique())), margin=dict(l=6, r=6, t=30, b=4))
+    fig.update_layout(height=max(280, 30 * len(chart_df["date_label"].unique())), margin=dict(l=10, r=10, t=38, b=10))
 
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
@@ -3515,9 +3507,7 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
             annotation_position="top left",
         )
 
-    fig.update_xaxes(title_text="")
-    fig.update_yaxes(title_text="")
-    fig.update_layout(height=235, margin=dict(l=6, r=6, t=30, b=4))
+    fig.update_layout(height=275, margin=dict(l=10, r=10, t=38, b=10))
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
 
@@ -3596,14 +3586,14 @@ tabs = st.tabs(
 # ============================================================
 
 with tabs[0]:
-    st.subheader("Today")
+    st.subheader("Summary of Today")
 
-    st.caption(dashboard_date_label(today_start))
+    st.caption(f"Today is {dashboard_date_label(today_start)}.")
 
     c1, c2, c3, c4 = st.columns(4)
 
     with c1:
-        st.metric("Steps", fmt_number(today_steps))
+        st.metric("Daily Steps", fmt_number(today_steps))
 
     with c2:
         st.metric("Sleep", human_duration_from_hours(today_sleep_hours) if today_sleep_hours is not None else "No data")
@@ -3619,15 +3609,15 @@ with tabs[0]:
     left, right = st.columns(2)
 
     with left:
-        st.markdown("### Sleep Today")
+        st.markdown("### Sleep Today, Midnight to Midnight")
         sleep_timeline_chart(
             today_sleep,
-            "Sleep 24hr",
+            "24 Hour Sleep Timeline",
             chart_key="today_sleep_timeline",
         )
 
     with right:
-        st.markdown("### Macros Today")
+        st.markdown("### Protein, Carbs and Fat Today")
         macro_pie_chart(
             today_protein,
             today_carbs,
@@ -3637,7 +3627,7 @@ with tabs[0]:
 
     st.divider()
 
-    st.markdown("### Food")
+    st.markdown("### Food Today")
 
     today_food_display = prepare_food_table(today_food)
 
@@ -3691,23 +3681,23 @@ with tabs[0]:
 # ============================================================
 
 with tabs[1]:
-    st.subheader(f"History ({selected_range_label(history_days)})")
+    st.subheader(f"Summary Last {selected_range_label(history_days)}")
 
     st.caption(dashboard_date_range_label(history_start, history_end) + ".")
 
     c1, c2, c3, c4 = st.columns(4)
 
     with c1:
-        st.metric("Avg Steps", fmt_number(history_avg_steps))
+        st.metric("Average Daily Steps", fmt_number(history_avg_steps))
 
     with c2:
-        st.metric("Avg Sleep", human_duration_from_hours(history_avg_sleep) if history_avg_sleep is not None else "No data")
+        st.metric("Average Sleep", human_duration_from_hours(history_avg_sleep) if history_avg_sleep is not None else "No data")
 
     with c3:
-        st.metric("Avg Calories", fmt_number(history_avg_calories))
+        st.metric("Average Calories", fmt_number(history_avg_calories))
 
     with c4:
-        st.metric("Latest", kg_to_st_lb(latest_weight_kg) if latest_weight_kg is not None else "No data")
+        st.metric("Latest Weight", kg_to_st_lb(latest_weight_kg) if latest_weight_kg is not None else "No data")
 
     st.divider()
 
@@ -3719,7 +3709,7 @@ with tabs[1]:
         daily_total_chart(
             history_activity,
             "steps",
-            f"Steps {selected_range_label(history_days)}",
+            f"Daily Steps Last {selected_range_label(history_days)}",
             "history_steps_line",
             chart_type="bar",
             goal_value=DEFAULT_GOALS["steps"],
@@ -3730,7 +3720,7 @@ with tabs[1]:
         daily_total_chart(
             history_sleep,
             "sleep_hours",
-            f"Sleep {selected_range_label(history_days)}",
+            f"Sleep Hours Last {selected_range_label(history_days)}",
             "history_sleep_bar",
             chart_type="bar",
             goal_value=DEFAULT_GOALS["sleep_hours"],
@@ -3743,7 +3733,7 @@ with tabs[1]:
         daily_total_chart(
             history_food_daily,
             "calories",
-            f"Calories {selected_range_label(history_days)}",
+            f"Calories Last {selected_range_label(history_days)}",
             "history_calories_line",
             chart_type="line",
             goal_value=DEFAULT_GOALS["calories"],
@@ -3763,13 +3753,13 @@ with tabs[1]:
     st.markdown("### Sleep Timing")
     daily_sleep_timing_chart(
         history_sleep,
-        f"Sleep Timing {selected_range_label(history_days)}",
+        f"Sleep Timing Last {selected_range_label(history_days)}",
         "history_sleep_timing",
     )
 
     st.divider()
 
-    st.markdown("### Weight")
+    st.markdown("### Weight Last Selected Days")
 
     if history_weight.empty:
         st.info("No weight data found for this range.")
@@ -3788,7 +3778,7 @@ with tabs[1]:
 
     st.divider()
 
-    st.markdown("### Food")
+    st.markdown("### Food Last Selected Days")
 
     history_food_display = prepare_food_table(history_food)
 
@@ -3818,13 +3808,13 @@ with tabs[2]:
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.metric("Avg Sleep", human_duration_from_hours(history_avg_sleep))
+            st.metric("Average Sleep", human_duration_from_hours(history_avg_sleep))
 
         with col2:
-            st.metric("Longest", human_duration_from_hours(history_sleep["sleep_hours"].max()))
+            st.metric("Longest Sleep", human_duration_from_hours(history_sleep["sleep_hours"].max()))
 
         with col3:
-            st.metric("Shortest", human_duration_from_hours(history_sleep["sleep_hours"].min()))
+            st.metric("Shortest Sleep", human_duration_from_hours(history_sleep["sleep_hours"].min()))
 
         daily_total_chart(
             history_sleep,
@@ -3882,7 +3872,7 @@ with tabs[3]:
         daily_total_chart(
             history_activity,
             "steps",
-            "Steps",
+            "Daily Steps",
             "steps_breakdown_line",
             chart_type="bar",
             goal_value=DEFAULT_GOALS["steps"],
@@ -3926,16 +3916,16 @@ with tabs[4]:
         c1, c2, c3, c4 = st.columns(4)
 
         with c1:
-            st.metric("Avg Calories", fmt_number(history_avg_calories))
+            st.metric("Average Calories", fmt_number(history_avg_calories))
 
         with c2:
-            st.metric("Avg Protein", fmt_number(history_avg_protein, suffix="g"))
+            st.metric("Average Protein", fmt_number(history_avg_protein, suffix="g"))
 
         with c3:
-            st.metric("Avg Carbs", fmt_number(history_avg_carbs, suffix="g"))
+            st.metric("Average Carbs", fmt_number(history_avg_carbs, suffix="g"))
 
         with c4:
-            st.metric("Avg Fat", fmt_number(history_avg_fat, suffix="g"))
+            st.metric("Average Fat", fmt_number(history_avg_fat, suffix="g"))
 
         left, right = st.columns(2)
 
@@ -3994,10 +3984,10 @@ with tabs[5]:
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.metric("Start", kg_to_st_lb(start_weight))
+            st.metric("Start Weight", kg_to_st_lb(start_weight))
 
         with col2:
-            st.metric("Latest", kg_to_st_lb(end_weight))
+            st.metric("Latest Weight", kg_to_st_lb(end_weight))
 
         with col3:
             st.metric("Change", pounds_to_st_lb_change(diff_lb), delta=f"{diff_lb:+.1f}lb")
