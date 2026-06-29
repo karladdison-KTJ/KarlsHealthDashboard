@@ -2875,7 +2875,7 @@ with st.sidebar:
 
     today_start, today_end = today_date(), today_date()
 
-    st.caption(f"History: {dashboard_date_range_label(history_start, history_end)}")
+    st.caption(f"History: {dashboard_date_label(history_start)} to {dashboard_date_label(history_end)}")
 
     st.divider()
     st.header("Withings")
@@ -3839,3 +3839,4 @@ with tabs[5]:
             use_container_width=True,
             hide_index=True,
         )
+
