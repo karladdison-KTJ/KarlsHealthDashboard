@@ -423,18 +423,21 @@ def check_dashboard_login():
 
     check_remembered_device()
 
-    st.title(APP_TITLE)
-    st.caption("Private dashboard. Please enter your username and password to continue.")
+    login_area = st.empty()
 
-    with st.form("dashboard_login_form"):
-        entered_username = st.text_input("Username")
-        entered_password = st.text_input("Password", type="password")
-        remember_device = st.checkbox(
-            f"Remember this device for {DASHBOARD_REMEMBER_DAYS} days",
-            value=True,
-            help="Good for your own iPhone or PC. Do not tick this on a shared device.",
-        )
-        submitted = st.form_submit_button("Unlock Dashboard")
+    with login_area.container():
+        st.title(APP_TITLE)
+        st.caption("Private dashboard. Please enter your username and password to continue.")
+
+        with st.form("dashboard_login_form"):
+            entered_username = st.text_input("Username")
+            entered_password = st.text_input("Password", type="password")
+            remember_device = st.checkbox(
+                f"Remember this device for {DASHBOARD_REMEMBER_DAYS} days",
+                value=True,
+                help="Good for your own iPhone or PC. Do not tick this on a shared device.",
+            )
+            submitted = st.form_submit_button("Unlock Dashboard")
 
     if submitted:
         username_ok = entered_username.strip().lower() == str(APP_USERNAME).strip().lower()
@@ -450,6 +453,10 @@ def check_dashboard_login():
                     remember_cookie_writer_script(token)
                     st.success("Login saved on this device.")
 
+            # Clear the login box from the page before drawing the dashboard below.
+            # This avoids showing the login form and the dashboard at the same time
+            # on the first successful login.
+            login_area.empty()
             return
         else:
             st.error("Username or password incorrect. Please try again.")
