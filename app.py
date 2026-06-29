@@ -93,7 +93,7 @@ DEFAULT_GOALS = {
     "protein_pct": 30,
     "fat_pct": 30,
     "fluids_l": 2.0,
-    "target_weight_stones": 15.0,
+    "target_weight_stones": 16.0,
 }
 
 DEFAULT_MEDICATIONS = [
@@ -725,6 +725,9 @@ def show_trend_card(title, main_text, detail_text, status_text):
 # Chart helpers
 # ============================================================
 
+PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
+
+
 def simple_bar_chart(df, x, y, title, chart_key=None):
     if df is None or df.empty or x not in df.columns or y not in df.columns:
         st.info("No data available for this chart.")
@@ -736,7 +739,7 @@ def simple_bar_chart(df, x, y, title, chart_key=None):
     if chart_key is None:
         chart_key = f"bar_{title}_{x}_{y}"
 
-    st.plotly_chart(fig, use_container_width=True, key=chart_key)
+    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
 
 def simple_line_chart(df, x, y, title, chart_key=None):
@@ -750,7 +753,7 @@ def simple_line_chart(df, x, y, title, chart_key=None):
     if chart_key is None:
         chart_key = f"line_{title}_{x}_{y}"
 
-    st.plotly_chart(fig, use_container_width=True, key=chart_key)
+    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
 
 def macro_pie_chart(protein, carbs, fat, chart_key=None):
@@ -876,7 +879,7 @@ def health_notes_line_chart(df, y_col, title, chart_key):
     fig.update_yaxes(range=[0, 10])
     fig.update_layout(height=330, margin=dict(l=20, r=20, t=50, b=20))
 
-    st.plotly_chart(fig, use_container_width=True, key=chart_key)
+    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
 
 
@@ -1847,7 +1850,8 @@ def get_withings_weight(start_date, end_date, access_token):
     rows = []
 
     for group in groups:
-        measure_date = datetime.fromtimestamp(group.get("date")).date()
+        measure_dt = datetime.fromtimestamp(group.get("date"))
+        measure_date = measure_dt.date()
 
         for measure in group.get("measures", []):
             if measure.get("type") == 1:
@@ -1858,6 +1862,7 @@ def get_withings_weight(start_date, end_date, access_token):
                 rows.append(
                     {
                         "date": measure_date,
+                        "measure_datetime": measure_dt,
                         "weight_kg": kg,
                         "weight_st_lb": kg_to_st_lb(kg),
                     }
@@ -1867,6 +1872,10 @@ def get_withings_weight(start_date, end_date, access_token):
         return pd.DataFrame(), f"No weight rows after parsing. Raw body: {body}"
 
     df = pd.DataFrame(rows)
+    # Withings can return more than one weigh-in per day. Keep the latest reading for each date.
+    if "measure_datetime" in df.columns:
+        df = df.sort_values("measure_datetime")
+        df = df.drop_duplicates(subset=["date"], keep="last")
     df = df.sort_values("date")
 
     return df, None
@@ -2842,7 +2851,7 @@ handle_withings_callback()
 # ============================================================
 
 st.title(APP_TITLE)
-st.caption("Daily health dashboard showing today, recent history, sleep, steps, food, water and weight.")
+st.caption("Daily health dashboard showing today, recent history, sleep, steps, food and weight.")
 
 with st.sidebar:
     if st.button("Lock dashboard on this device", use_container_width=True):
@@ -3054,6 +3063,42 @@ def infer_fluid_ml_from_text(*values):
     return ml_total
 
 
+def clean_food_name(value):
+    name = str(value or "").strip()
+
+    if name.lower() in ["", "0", "0.0", "nan", "none", "unknown food"]:
+        return ""
+
+    low = name.lower()
+
+    replacements = [
+        ("oat so simple original protein", "Quaker Protein Oats"),
+        ("protein bar cocoa hazelnut by nakd", "Nakd Cocoa Hazelnut Protein Bar"),
+        ("protein peanut butter dark chocolate", "Peanut Butter Protein Bar"),
+        ("smooth caramel rice cakes", "Caramel Rice Cakes"),
+        ("mint chocolate cones by morrisons", "Morrisons Mint Chocolate Cone"),
+        ("pains au chocolat by morrisons", "Morrisons Pain au Chocolat"),
+        ("choc peanut bar by skinny dream", "Skinny Dream Choc Peanut Bar"),
+        ("high protein almond and salted caramel", "High Protein Almond Caramel"),
+        ("skinny crunch light raspberry", "Skinny Crunch Raspberry Bar"),
+        ("crispy leaf salad kit", "Crispy Leaf Salad Kit"),
+        ("kit kat chocolate wafer", "KitKat"),
+        ("renapro", "Renapro"),
+    ]
+
+    for needle, replacement in replacements:
+        if needle in low:
+            return replacement
+
+    # Remove common trailing brand wording to make the iPhone table easier to read.
+    name = re.sub(r"\s+by\s+.+$", "", name, flags=re.IGNORECASE).strip()
+
+    if len(name) > 42:
+        name = name[:39].rstrip() + "..."
+
+    return name
+
+
 def clean_food_dataframe(food_table):
     if food_table is None or food_table.empty:
         return pd.DataFrame()
@@ -3081,7 +3126,19 @@ def clean_food_dataframe(food_table):
 
     missing_food_mask = food_lower.isin(["", "0", "0.0", "nan", "none", "unknown food"])
     supplement_mask = meal_lower.str.contains("supplement", na=False)
-    df.loc[supplement_mask & missing_food_mask, "food"] = "Supplement"
+
+    # Supplements often arrive from MyNetDiary as a blank/0 food name.
+    # Show the useful label instead of "0" or generic "Supplement".
+    df.loc[supplement_mask & missing_food_mask, "food"] = "Renapro"
+
+    # Remove any remaining blank/zero food rows.
+    df = df[~df["food"].fillna("").astype(str).str.strip().str.lower().isin(["", "0", "0.0", "nan", "none", "unknown food"])].copy()
+
+    if df.empty:
+        return df
+
+    df["food"] = df["food"].apply(clean_food_name)
+    df = df[df["food"].astype(str).str.strip() != ""].copy()
 
     # If MyNetDiary exports water as a food row instead of a Water/Fluid column,
     # infer ml from text such as "Water 500 ml" or "Water 2 L".
@@ -3246,7 +3303,7 @@ def sleep_timeline_chart(sleep_table, title, chart_key):
     fig.update_yaxes(range=[0, 60])
     fig.update_layout(height=330, margin=dict(l=20, r=20, t=50, b=20))
 
-    st.plotly_chart(fig, use_container_width=True, key=chart_key)
+    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
 
 def daily_sleep_timing_chart(sleep_table, title, chart_key):
@@ -3306,10 +3363,10 @@ def daily_sleep_timing_chart(sleep_table, title, chart_key):
     )
     fig.update_layout(height=max(330, 34 * len(chart_df["date_label"].unique())), margin=dict(l=20, r=20, t=50, b=20))
 
-    st.plotly_chart(fig, use_container_width=True, key=chart_key)
+    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
 
-def daily_total_chart(df, value_col, title, chart_key, chart_type="bar"):
+def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_value=None, goal_label="Target"):
     if df is None or df.empty or value_col not in df.columns:
         st.info("No data available for this chart.")
         return
@@ -3317,13 +3374,50 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar"):
     chart_df = df.copy().sort_values("date")
     chart_df["date_label"] = pd.to_datetime(chart_df["date"]).dt.strftime("%a %d-%m-%y")
 
-    if chart_type == "line":
+    color_map = {
+        "Good": "#63B892",
+        "Close": "#DABC57",
+        "Low": "#D55A5A",
+        "Normal": "#2F6CC4",
+    }
+
+    use_status_col = False
+
+    if value_col == "sleep_hours":
+        chart_df["status"] = chart_df[value_col].apply(lambda v: "Good" if safe_float(v) >= 7 else "Close" if safe_float(v) >= 5 else "Low")
+        use_status_col = True
+    elif value_col == "steps":
+        chart_df["status"] = chart_df[value_col].apply(lambda v: "Good" if safe_float(v) >= 7000 else "Close" if safe_float(v) >= 5000 else "Low")
+        use_status_col = True
+
+    if chart_type == "line" and not use_status_col:
         fig = px.line(chart_df, x="date_label", y=value_col, markers=True, title=title)
     else:
-        fig = px.bar(chart_df, x="date_label", y=value_col, title=title)
+        if use_status_col:
+            fig = px.bar(
+                chart_df,
+                x="date_label",
+                y=value_col,
+                color="status",
+                color_discrete_map=color_map,
+                title=title,
+            )
+            fig.update_layout(showlegend=False)
+        elif chart_type == "line":
+            fig = px.line(chart_df, x="date_label", y=value_col, markers=True, title=title)
+        else:
+            fig = px.bar(chart_df, x="date_label", y=value_col, title=title)
+
+    if goal_value is not None and not pd.isna(goal_value):
+        fig.add_hline(
+            y=float(goal_value),
+            line_dash="dash",
+            annotation_text=goal_label,
+            annotation_position="top left",
+        )
 
     fig.update_layout(height=340, margin=dict(l=20, r=20, t=50, b=20))
-    st.plotly_chart(fig, use_container_width=True, key=chart_key)
+    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
 
 # ============================================================
@@ -3405,7 +3499,7 @@ with tabs[0]:
 
     st.caption(f"Today is {dashboard_date_label(today_start)}.")
 
-    c1, c2, c3, c4, c5 = st.columns(5)
+    c1, c2, c3, c4 = st.columns(4)
 
     with c1:
         st.metric("Daily Steps", fmt_number(today_steps))
@@ -3417,9 +3511,6 @@ with tabs[0]:
         st.metric("Calories", fmt_number(today_calories))
 
     with c4:
-        st.metric("Water", fmt_water(today_water))
-
-    with c5:
         st.metric("Weight", kg_to_st_lb(latest_weight_kg) if latest_weight_kg is not None else "No data")
 
     st.divider()
@@ -3503,7 +3594,7 @@ with tabs[1]:
 
     st.caption(dashboard_date_range_label(history_start, history_end) + ".")
 
-    c1, c2, c3, c4, c5 = st.columns(5)
+    c1, c2, c3, c4 = st.columns(4)
 
     with c1:
         st.metric("Average Daily Steps", fmt_number(history_avg_steps))
@@ -3515,9 +3606,6 @@ with tabs[1]:
         st.metric("Average Calories", fmt_number(history_avg_calories))
 
     with c4:
-        st.metric("Average Water", fmt_water(history_avg_water))
-
-    with c5:
         st.metric("Latest Weight", kg_to_st_lb(latest_weight_kg) if latest_weight_kg is not None else "No data")
 
     st.divider()
@@ -3532,7 +3620,9 @@ with tabs[1]:
             "steps",
             f"Daily Steps Last {selected_range_label(history_days)}",
             "history_steps_line",
-            chart_type="line",
+            chart_type="bar",
+            goal_value=DEFAULT_GOALS["steps"],
+            goal_label="7000 step target",
         )
 
     with h2:
@@ -3542,6 +3632,8 @@ with tabs[1]:
             f"Sleep Hours Last {selected_range_label(history_days)}",
             "history_sleep_bar",
             chart_type="bar",
+            goal_value=DEFAULT_GOALS["sleep_hours"],
+            goal_label="7 hr target",
         )
 
     h3, h4 = st.columns(2)
@@ -3553,6 +3645,8 @@ with tabs[1]:
             f"Calories Last {selected_range_label(history_days)}",
             "history_calories_line",
             chart_type="line",
+            goal_value=DEFAULT_GOALS["calories"],
+            goal_label="1800 kcal target",
         )
 
     with h4:
@@ -3587,6 +3681,8 @@ with tabs[1]:
             "Weight Trend, lb",
             "history_weight_line",
             chart_type="line",
+            goal_value=DEFAULT_GOALS["target_weight_stones"] * 14,
+            goal_label="Target weight",
         )
 
     st.divider()
@@ -3635,6 +3731,8 @@ with tabs[2]:
             "Daily Sleep Hours",
             "sleep_breakdown_daily",
             chart_type="bar",
+            goal_value=DEFAULT_GOALS["sleep_hours"],
+            goal_label="7 hr target",
         )
 
         daily_sleep_timing_chart(
@@ -3686,7 +3784,9 @@ with tabs[3]:
             "steps",
             "Daily Steps",
             "steps_breakdown_line",
-            chart_type="line",
+            chart_type="bar",
+            goal_value=DEFAULT_GOALS["steps"],
+            goal_label="7000 step target",
         )
 
         display_steps = history_activity.copy().sort_values("date", ascending=False)
@@ -3705,7 +3805,7 @@ with tabs[3]:
 # ============================================================
 
 with tabs[4]:
-    st.subheader(f"Food, Calories and Water ({selected_range_label(history_days)})")
+    st.subheader(f"Nutrition ({selected_range_label(history_days)})")
 
     if food_df.empty:
         st.info(
@@ -3724,7 +3824,7 @@ with tabs[4]:
     elif history_food_daily.empty:
         st.info("Food files were found, but there is no food data in the selected date range.")
     else:
-        c1, c2, c3, c4, c5 = st.columns(5)
+        c1, c2, c3, c4 = st.columns(4)
 
         with c1:
             st.metric("Average Calories", fmt_number(history_avg_calories))
@@ -3738,9 +3838,6 @@ with tabs[4]:
         with c4:
             st.metric("Average Fat", fmt_number(history_avg_fat, suffix="g"))
 
-        with c5:
-            st.metric("Average Water", fmt_water(history_avg_water))
-
         left, right = st.columns(2)
 
         with left:
@@ -3750,6 +3847,8 @@ with tabs[4]:
                 "Daily Calories",
                 "food_breakdown_calories",
                 chart_type="bar",
+                goal_value=DEFAULT_GOALS["calories"],
+                goal_label="1800 kcal target",
             )
 
         with right:
@@ -3759,17 +3858,6 @@ with tabs[4]:
                 history_avg_fat,
                 chart_key="food_breakdown_macro",
             )
-
-        if "fluid_ml" in history_food_daily.columns and pd.to_numeric(history_food_daily["fluid_ml"], errors="coerce").fillna(0).sum() > 0:
-            daily_total_chart(
-                history_food_daily,
-                "fluid_ml",
-                "Daily Water / Fluid ml",
-                "food_breakdown_water",
-                chart_type="bar",
-            )
-        else:
-            st.info("No water data found in the MyNetDiary export for this range.")
 
         st.divider()
 
@@ -3824,6 +3912,8 @@ with tabs[5]:
             "Weight Trend, lb",
             "weight_breakdown_line",
             chart_type="line",
+            goal_value=DEFAULT_GOALS["target_weight_stones"] * 14,
+            goal_label="Target weight",
         )
 
         display_weight = history_weight.copy().sort_values("date", ascending=False)
