@@ -1025,7 +1025,28 @@ def show_trend_card(title, main_text, detail_text, status_text):
 # Chart helpers
 # ============================================================
 
-PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
+PLOTLY_CONFIG = {
+    "displayModeBar": False,
+    "responsive": True,
+    "scrollZoom": False,
+    "doubleClick": False,
+    "showTips": False,
+}
+
+
+def lock_plotly_chart(fig):
+    """
+    Make Plotly charts phone-friendly by preventing tap/drag zoom.
+    Hover/tap labels can still work, but the chart should not zoom or pan accidentally.
+    """
+    try:
+        fig.update_layout(dragmode=False)
+        fig.update_xaxes(fixedrange=True)
+        fig.update_yaxes(fixedrange=True)
+    except Exception:
+        pass
+
+    return fig
 
 
 def simple_bar_chart(df, x, y, title, chart_key=None):
@@ -1038,6 +1059,8 @@ def simple_bar_chart(df, x, y, title, chart_key=None):
 
     if chart_key is None:
         chart_key = f"bar_{title}_{x}_{y}"
+
+    lock_plotly_chart(fig)
 
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
@@ -1053,10 +1076,17 @@ def simple_line_chart(df, x, y, title, chart_key=None):
     if chart_key is None:
         chart_key = f"line_{title}_{x}_{y}"
 
+    lock_plotly_chart(fig)
+
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
 
 def macro_pie_chart(protein, carbs, fat, chart_key=None):
+    """Compact macro summary for mobile.
+
+    The old pie chart took too much space on iPhone and the percentage labels
+    could overlap. This version uses one stacked bar plus three tight rows.
+    """
     protein_value = max(0.0, safe_float(protein))
     carbs_value = max(0.0, safe_float(carbs))
     fat_value = max(0.0, safe_float(fat))
@@ -1072,7 +1102,7 @@ def macro_pie_chart(protein, carbs, fat, chart_key=None):
             return f"{int(round(value))}g"
         return f"{value:.1f}g"
 
-    def percentage_list(values):
+    def rounded_percentages(values):
         raw = [v / total * 100 for v in values]
         rounded = [int(round(v)) for v in raw]
         diff = 100 - sum(rounded)
@@ -1084,75 +1114,52 @@ def macro_pie_chart(protein, carbs, fat, chart_key=None):
 
         return rounded
 
-    def polar(cx, cy, radius, angle_deg):
-        import math
-
-        rad = math.radians(angle_deg)
-        x = cx + radius * math.cos(rad)
-        y = cy + radius * math.sin(rad)
-        return x, y
-
-    def sector_path(cx, cy, radius, start_angle, end_angle):
-        x1, y1 = polar(cx, cy, radius, start_angle)
-        x2, y2 = polar(cx, cy, radius, end_angle)
-        large_arc = 1 if end_angle - start_angle > 180 else 0
-        return (
-            f"M {cx:.2f} {cy:.2f} "
-            f"L {x1:.2f} {y1:.2f} "
-            f"A {radius:.2f} {radius:.2f} 0 {large_arc} 1 {x2:.2f} {y2:.2f} Z"
-        )
-
     colors = {
         "carbs": "#63B892",
         "protein": "#9072D8",
         "fat": "#DABC57",
         "value": "#3E475B",
+        "muted": "#7B8497",
     }
 
-    percentages = percentage_list([carbs_value, protein_value, fat_value])
-    carbs_pct, protein_pct, fat_pct = percentages
-
-    slices = [
-        ("carbs", carbs_value, colors["carbs"]),
-        ("protein", protein_value, colors["protein"]),
-        ("fat", fat_value, colors["fat"]),
-    ]
-
-    start_angle = -90
-    paths = []
-
-    for _, value, color in slices:
-        angle = (value / total) * 360
-        end_angle = start_angle + angle
-        paths.append(
-            f'<path d="{sector_path(150, 150, 118, start_angle, end_angle)}" fill="{color}" stroke="#F4F4F4" stroke-width="4"></path>'
-        )
-        start_angle = end_angle
-
-    svg = "".join(paths)
+    carbs_pct, protein_pct, fat_pct = rounded_percentages([carbs_value, protein_value, fat_value])
 
     html = f"""
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:1.5rem; flex-wrap:wrap; margin-top:0.25rem;">
-        <div style="position:relative; width:300px; min-width:240px; height:238px;">
-            <div style="position:absolute; left:0px; top:0px; color:{colors['fat']}; font-size:1.9rem; font-weight:600; line-height:1;">{fat_pct}%</div>
-            <div style="position:absolute; left:12px; bottom:8px; color:{colors['protein']}; font-size:1.9rem; font-weight:600; line-height:1;">{protein_pct}%</div>
-            <div style="position:absolute; right:0px; top:0px; color:{colors['carbs']}; font-size:1.9rem; font-weight:600; line-height:1;">{carbs_pct}%</div>
-            <svg viewBox="0 0 300 300" style="position:absolute; left:35px; top:16px; width:190px; height:190px; overflow:visible;">
-                {svg}
-            </svg>
+    <div style="
+        border:1px solid rgba(128,128,128,0.18);
+        border-radius:14px;
+        padding:0.65rem 0.75rem;
+        background:rgba(255,255,255,0.70);
+        margin:0.2rem 0 0.35rem 0;
+    ">
+        <div style="
+            display:flex;
+            height:14px;
+            border-radius:999px;
+            overflow:hidden;
+            background:rgba(128,128,128,0.14);
+            margin-bottom:0.55rem;
+        ">
+            <div style="width:{carbs_pct}%; background:{colors['carbs']};"></div>
+            <div style="width:{protein_pct}%; background:{colors['protein']};"></div>
+            <div style="width:{fat_pct}%; background:{colors['fat']};"></div>
         </div>
-        <div style="flex:1; min-width:240px; max-width:420px;">
-            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.55rem; gap:1rem;">
-                <div style="color:{colors['carbs']}; font-size:1.55rem; font-weight:500; line-height:1.1;">T. Carbs</div>
-                <div style="color:{colors['value']}; font-size:1.45rem; font-weight:600; line-height:1.1;">{format_grams(carbs_value)}</div>
+
+        <div style="display:flex; flex-direction:column; gap:0.38rem;">
+            <div style="display:grid; grid-template-columns:1fr auto auto; gap:0.6rem; align-items:center;">
+                <div style="font-size:0.92rem; font-weight:750; color:{colors['carbs']};">Carbs</div>
+                <div style="font-size:0.92rem; color:{colors['value']}; font-weight:750;">{format_grams(carbs_value)}</div>
+                <div style="font-size:0.92rem; color:{colors['carbs']}; font-weight:850; width:3.1rem; text-align:right;">{carbs_pct}%</div>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.55rem; gap:1rem;">
-                <div style="color:{colors['protein']}; font-size:1.55rem; font-weight:500; line-height:1.1;">Protein</div>
-                <div style="color:{colors['value']}; font-size:1.45rem; font-weight:600; line-height:1.1;">{format_grams(protein_value)}</div>
+            <div style="display:grid; grid-template-columns:1fr auto auto; gap:0.6rem; align-items:center;">
+                <div style="font-size:0.92rem; font-weight:750; color:{colors['protein']};">Protein</div>
+                <div style="font-size:0.92rem; color:{colors['value']}; font-weight:750;">{format_grams(protein_value)}</div>
+                <div style="font-size:0.92rem; color:{colors['protein']}; font-weight:850; width:3.1rem; text-align:right;">{protein_pct}%</div>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:baseline; gap:1rem;">
-                <div style="color:{colors['fat']}; font-size:1.55rem; font-weight:500; line-height:1.1;">Fat</div>
-                <div style="color:{colors['value']}; font-size:1.45rem; font-weight:600; line-height:1.1;">{format_grams(fat_value)}</div>
+            <div style="display:grid; grid-template-columns:1fr auto auto; gap:0.6rem; align-items:center;">
+                <div style="font-size:0.92rem; font-weight:750; color:{colors['fat']};">Fat</div>
+                <div style="font-size:0.92rem; color:{colors['value']}; font-weight:750;">{format_grams(fat_value)}</div>
+                <div style="font-size:0.92rem; color:{colors['fat']}; font-weight:850; width:3.1rem; text-align:right;">{fat_pct}%</div>
             </div>
         </div>
     </div>
@@ -1178,6 +1185,8 @@ def health_notes_line_chart(df, y_col, title, chart_key):
     fig = px.line(temp, x="date", y=y_col, markers=True, title=title)
     fig.update_yaxes(range=[0, 10])
     fig.update_layout(height=270, margin=dict(l=10, r=10, t=38, b=10))
+
+    lock_plotly_chart(fig)
 
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
@@ -3643,11 +3652,13 @@ def render_health_score(score, parts):
                     </div>
                 </div>
                 <div style='flex:1; min-width:210px;'>
-                    <div style='font-size:1.35rem; font-weight:850; color:{colour};'>Today's Health Score</div>
+                    <div style='display:flex; align-items:center; gap:0.45rem; font-size:1.35rem; font-weight:850; color:{colour};'>
+                        <span style='font-size:1.25rem; line-height:1;'>🏆</span>
+                        <span>Today's Health Score</span>
+                    </div>
                     <div style='font-size:0.98rem; opacity:0.82; margin-top:0.2rem;'>{html_escape(message)}</div>
                     <div style='margin-top:0.65rem;'>{''.join(pills)}</div>
                 </div>
-                <div style='font-size:2.5rem; flex:0 0 auto;'>🏆</div>
             </div>
         </div>
         """,
@@ -4011,6 +4022,8 @@ def sleep_timeline_chart(sleep_table, title, chart_key):
     fig.update_yaxes(title_text=None, range=[0, 60], showticklabels=False)
     fig.update_layout(height=240, margin=dict(l=8, r=8, t=38, b=8), bargap=0.12)
 
+    lock_plotly_chart(fig)
+
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
 
@@ -4074,6 +4087,8 @@ def daily_sleep_timing_chart(sleep_table, title, chart_key):
     )
     fig.update_yaxes(title_text=None)
     fig.update_layout(height=min(900, max(330, 34 * unique_days + 80)), margin=dict(l=8, r=8, t=38, b=8), showlegend=False)
+
+    lock_plotly_chart(fig)
 
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
@@ -4205,6 +4220,8 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
     )
     fig.update_yaxes(title_text=None)
     fig.update_layout(height=240, margin=dict(l=8, r=8, t=42, b=18), bargap=0.20)
+
+    lock_plotly_chart(fig)
 
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
