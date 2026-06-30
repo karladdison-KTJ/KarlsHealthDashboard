@@ -50,10 +50,10 @@ st.set_page_config(
 
 APP_TITLE = "Karl's Health Dashboard"
 APP_LOGIN_ID = "K Health"
-APP_VERSION = "v2.2.2"
-APP_REVIEW_DATE = "30-06-26 01:25"
+APP_VERSION = "v2.2.3"
+APP_REVIEW_DATE = "30-06-26 01:35"
 APP_REVIEW_DISPLAY = "Reviewed Tue 30 Jun 2026"
-APP_BUILD = "20260630-0125"
+APP_BUILD = "20260630-0135"
 APP_DESCRIPTION = "Bringing together Withings and MyNetDiary Pro"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -3999,6 +3999,17 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
         st.info("No data available for this chart.")
         return
 
+    unique_x_labels = chart_df["date_label"].astype(str).tolist()
+
+    if len(unique_x_labels) > 14:
+        tick_step = max(1, (len(unique_x_labels) + 7) // 8)
+        visible_x_labels = unique_x_labels[::tick_step]
+
+        if unique_x_labels[-1] not in visible_x_labels:
+            visible_x_labels.append(unique_x_labels[-1])
+    else:
+        visible_x_labels = unique_x_labels
+
     metric_colour = css_color(metric_color_key(value_col))
 
     color_map = {
@@ -4069,7 +4080,13 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
             annotation_position="top left",
         )
 
-    fig.update_xaxes(title_text=None)
+    fig.update_xaxes(
+        title_text=None,
+        tickmode="array",
+        tickvals=visible_x_labels,
+        ticktext=visible_x_labels,
+        tickangle=0,
+    )
     fig.update_yaxes(title_text=None)
     fig.update_layout(height=330, margin=dict(l=8, r=8, t=42, b=8), bargap=0.20)
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
