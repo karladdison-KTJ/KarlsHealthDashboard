@@ -36,7 +36,7 @@ def apply_mobile_compact_css():
     st.markdown("""
     <style>
     .block-container {
-        padding-top: 0.6rem !important;
+        padding-top: 1.0rem !important;
         padding-bottom: 0.8rem !important;
         padding-left: 0.45rem !important;
         padding-right: 0.45rem !important;
@@ -100,7 +100,7 @@ def apply_mobile_compact_css():
         border-radius: 0.65rem;
         padding: 0.28rem 0.45rem 0.05rem 0.45rem;
         margin: 0.05rem 0 0.05rem 0;
-        background: rgba(255,255,255,0.66);
+        background: #FFFFFF;
     }
 
     .compact-goal-top {
@@ -118,6 +118,101 @@ def apply_mobile_compact_css():
     .stProgress > div > div > div > div {
         height: 0.38rem !important;
     }
+
+
+    div[data-testid="stForm"] {
+        margin-top: 0.25rem !important;
+    }
+
+    .stAlert {
+        margin-top: 0.15rem !important;
+        margin-bottom: 0.25rem !important;
+    }
+    
+
+    /* White iPhone-style cards with soft grey headers, matching Streamlit expanders. */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background: #FFFFFF !important;
+        border: 1px solid rgba(101, 112, 130, 0.24) !important;
+        border-radius: 14px !important;
+        box-shadow: 0 6px 18px rgba(22, 83, 64, 0.07) !important;
+        overflow: hidden !important;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"] > div,
+    div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlock"] {
+        background: #FFFFFF !important;
+    }
+
+    .kh-card,
+    .compact-goal-card,
+    div[data-testid="stPlotlyChart"],
+    div[data-testid="stDataFrame"],
+    div[data-testid="stForm"],
+    div[data-testid="stExpander"] details {
+        background: #FFFFFF !important;
+    }
+
+    .kh-section-header {
+        margin: -0.65rem -0.75rem 0.55rem -0.75rem;
+        padding: 0.52rem 0.72rem;
+        background: #F4F6F8;
+        border-bottom: 1px solid rgba(101, 112, 130, 0.18);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.65rem;
+        border-top-left-radius: 14px;
+        border-top-right-radius: 14px;
+    }
+
+    .kh-section-header-title {
+        font-size: 0.88rem;
+        line-height: 1.15;
+        font-weight: 850;
+        color: #303548;
+    }
+
+    .kh-section-header-right {
+        font-size: 0.78rem;
+        font-weight: 750;
+        color: rgba(48, 53, 72, 0.66);
+        white-space: nowrap;
+    }
+
+    .kh-compact-food-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.75rem;
+        align-items: baseline;
+        padding: 0.38rem 0;
+        border-bottom: 1px solid rgba(101, 112, 130, 0.14);
+    }
+
+    .kh-compact-food-row:last-child {
+        border-bottom: none;
+    }
+
+    .kh-compact-food-name {
+        font-size: 0.88rem;
+        font-weight: 720;
+        color: #303548;
+    }
+
+    .kh-compact-food-cal {
+        font-size: 0.82rem;
+        font-weight: 780;
+        color: rgba(48, 53, 72, 0.72);
+        white-space: nowrap;
+    }
+
+    .js-plotly-plot,
+    .plotly,
+    .plot-container,
+    .svg-container {
+        background: #FFFFFF !important;
+    }
+
     </style>
     """, unsafe_allow_html=True)
 
@@ -131,6 +226,7 @@ st.set_page_config(
     page_title="Karl's Health Dashboard",
     page_icon="🩺",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 apply_mobile_compact_css()
@@ -552,7 +648,6 @@ def check_dashboard_login():
 
                 if token:
                     remember_cookie_writer_script(token)
-                    st.success("Login saved on this device.")
 
             # Clear the login box from the page before drawing the dashboard below.
             # This avoids showing the login form and the dashboard at the same time
@@ -575,7 +670,7 @@ st.markdown(
     """
     <style>
         .block-container {
-            padding-top: 0.45rem !important;
+            padding-top: 0.35rem !important;
             padding-bottom: 0.75rem !important;
             padding-left: 0.45rem !important;
             padding-right: 0.45rem !important;
@@ -633,12 +728,31 @@ st.markdown(
         }
 
 
+        /* Tighten Streamlit Cloud top chrome/margins on mobile. */
+        #MainMenu, footer, [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"] {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+        }
+
+        header[data-testid="stHeader"], [data-testid="stHeader"] {
+            height: 0 !important;
+            min-height: 0 !important;
+            display: none !important;
+            visibility: hidden !important;
+        }
+
+        section.main > div {
+            padding-top: 0 !important;
+        }
+
+
 
         .kh-card {
             border: 1px solid rgba(128,128,128,0.18);
             border-radius: 18px;
             padding: 0.5rem;
-            background: rgba(255,255,255,0.70);
+            background: #FFFFFF;
             box-shadow: 0 4px 16px rgba(20, 40, 80, 0.04);
             margin-bottom: 0.35rem;
         }
@@ -659,7 +773,7 @@ st.markdown(
             border-radius: 18px;
             padding: 0.45rem;
             border: 1px solid rgba(128,128,128,0.18);
-            background: rgba(255,255,255,0.72);
+            background: #FFFFFF;
             min-height: 72px;
         }
 
@@ -756,11 +870,558 @@ st.markdown(
             .stMarkdown p, .stCaptionContainer {
                 font-size: 0.9rem !important;
             }
+        }
+    
+        html, body, [data-testid="stAppViewContainer"], .stApp {
+            background: linear-gradient(180deg, #CBE7D2 0%, #DFF2E4 46%, #F6FCF8 100%) !important;
+        }
 
-            div[data-testid="column"] {
-                width: 100% !important;
-                flex: 1 1 100% !important;
+        [data-testid="stHeader"] {
+            background: rgba(203, 231, 210, 0.92) !important;
+            backdrop-filter: blur(10px);
+        }
+
+        .kh-app-header {
+            display: flex;
+            align-items: center;
+            gap: 0.72rem;
+            margin: 0 0 0.22rem 0;
+            padding: 0.1rem 0.1rem 0.08rem 0.1rem;
+        }
+
+        .kh-header-icon-wrap {
+            flex: 0 0 auto;
+            width: 58px;
+            height: 58px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .kh-header-logo {
+            width: 58px;
+            height: 58px;
+            object-fit: cover;
+            border-radius: 17px;
+            box-shadow: 0 6px 18px rgba(22, 83, 64, 0.16);
+        }
+
+        .kh-header-fallback {
+            width: 58px;
+            height: 58px;
+            border-radius: 17px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            background: linear-gradient(135deg, #B8E7C5, #D2EBDC);
+            box-shadow: 0 6px 18px rgba(22, 83, 64, 0.16);
+        }
+
+        .kh-header-text {
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .kh-header-title-row {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            flex-wrap: wrap;
+            line-height: 1.05;
+        }
+
+        .kh-header-title {
+            font-size: clamp(1.28rem, 5.6vw, 2rem);
+            font-weight: 900;
+            color: #303548;
+            letter-spacing: -0.03rem;
+        }
+
+        .kh-version-pill {
+            background: linear-gradient(135deg, #2F9C55, #2F8B74);
+            color: white;
+            border-radius: 999px;
+            padding: 0.13rem 0.43rem;
+            font-size: 0.72rem;
+            font-weight: 900;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(47, 108, 196, 0.18);
+        }
+
+        .kh-header-subtitle {
+            margin-top: 0.18rem;
+            color: rgba(48, 53, 72, 0.72);
+            font-size: 0.78rem;
+            line-height: 1.28;
+        }
+
+        .kh-chart-frame {
+            border: 1px solid rgba(47, 132, 86, 0.30);
+            border-radius: 16px;
+            padding: 0.48rem 0.52rem 0.35rem 0.52rem;
+            margin: 0.25rem 0 0.45rem 0;
+            background: #FFFFFF;
+            box-shadow: 0 8px 26px rgba(22, 83, 64, 0.09);
+        }
+
+        .kh-chart-frame .js-plotly-plot,
+        .kh-chart-frame [data-testid="stPlotlyChart"] {
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .compact-goal-card strong,
+        .compact-goal-bottom strong {
+            font-weight: 850;
+        }
+
+        @media (max-width: 700px) {
+            .kh-app-header {
+                gap: 0.62rem;
+                margin-top: 0;
             }
+
+            .kh-header-icon-wrap,
+            .kh-header-logo,
+            .kh-header-fallback {
+                width: 54px;
+                height: 54px;
+                border-radius: 15px;
+            }
+
+            .kh-header-title {
+                font-size: clamp(1.2rem, 6.1vw, 1.75rem);
+            }
+
+            .kh-header-subtitle {
+                font-size: 0.74rem;
+            }
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            border-color: rgba(47, 132, 86, 0.30) !important;
+            border-radius: 16px !important;
+            background: #FFFFFF !important;
+            box-shadow: 0 8px 26px rgba(22, 83, 64, 0.09);
+        }
+
+        .kh-chart-frame,
+        .kh-card,
+        div[data-testid="stPlotlyChart"],
+        div[data-testid="stDataFrame"],
+        div[data-testid="stForm"],
+        div[data-testid="stExpander"] details {
+            background: #FFFFFF !important;
+        }
+
+        .js-plotly-plot,
+        .plotly,
+        .plot-container,
+        .svg-container {
+            background: #FFFFFF !important;
+        }
+
+
+    /* White iPhone-style cards with soft grey headers, matching Streamlit expanders. */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background: #FFFFFF !important;
+        border: 1px solid rgba(101, 112, 130, 0.24) !important;
+        border-radius: 14px !important;
+        box-shadow: 0 6px 18px rgba(22, 83, 64, 0.07) !important;
+        overflow: hidden !important;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"] > div,
+    div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlock"] {
+        background: #FFFFFF !important;
+    }
+
+    .kh-card,
+    .compact-goal-card,
+    div[data-testid="stPlotlyChart"],
+    div[data-testid="stDataFrame"],
+    div[data-testid="stForm"],
+    div[data-testid="stExpander"] details {
+        background: #FFFFFF !important;
+    }
+
+    .kh-section-header {
+        margin: -0.65rem -0.75rem 0.55rem -0.75rem;
+        padding: 0.52rem 0.72rem;
+        background: #F4F6F8;
+        border-bottom: 1px solid rgba(101, 112, 130, 0.18);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.65rem;
+        border-top-left-radius: 14px;
+        border-top-right-radius: 14px;
+    }
+
+    .kh-section-header-title {
+        font-size: 0.88rem;
+        line-height: 1.15;
+        font-weight: 850;
+        color: #303548;
+    }
+
+    .kh-section-header-right {
+        font-size: 0.78rem;
+        font-weight: 750;
+        color: rgba(48, 53, 72, 0.66);
+        white-space: nowrap;
+    }
+
+    .kh-compact-food-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.75rem;
+        align-items: baseline;
+        padding: 0.38rem 0;
+        border-bottom: 1px solid rgba(101, 112, 130, 0.14);
+    }
+
+    .kh-compact-food-row:last-child {
+        border-bottom: none;
+    }
+
+    .kh-compact-food-name {
+        font-size: 0.88rem;
+        font-weight: 720;
+        color: #303548;
+    }
+
+    .kh-compact-food-cal {
+        font-size: 0.82rem;
+        font-weight: 780;
+        color: rgba(48, 53, 72, 0.72);
+        white-space: nowrap;
+    }
+
+    .js-plotly-plot,
+    .plotly,
+    .plot-container,
+    .svg-container {
+        background: #FFFFFF !important;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+
+# ============================================================
+# Final visual fixes: keep green only as the page background
+# ============================================================
+
+st.markdown(
+    """
+    <style>
+        /* Keep the green fade as the app background only. */
+        html, body, .stApp, [data-testid="stAppViewContainer"] {
+            background: linear-gradient(180deg, #CBE7D2 0%, #DFF2E4 46%, #F6FCF8 100%) !important;
+        }
+
+        /* Restore the sidebar as the main import/control area. */
+        [data-testid="stSidebar"],
+        [data-testid="stSidebar"] > div {
+            background: #FFFFFF !important;
+        }
+
+        /* All bordered Streamlit cards should be white inside, with grey headers. */
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            background: #FFFFFF !important;
+            border: 1px solid rgba(101, 112, 130, 0.24) !important;
+            border-radius: 14px !important;
+            box-shadow: 0 6px 18px rgba(22, 83, 64, 0.07) !important;
+            overflow: hidden !important;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"] > div,
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlock"],
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"],
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"],
+        div[data-testid="stVerticalBlockBorderWrapper"] .element-container {
+            background: #FFFFFF !important;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMarkdownContainer"] {
+            background: transparent !important;
+        }
+
+        .kh-card,
+        .kh-chart-frame,
+        .compact-goal-card,
+        div[data-testid="stPlotlyChart"],
+        div[data-testid="stDataFrame"],
+        div[data-testid="stForm"],
+        div[data-testid="stExpander"] details {
+            background: #FFFFFF !important;
+        }
+
+        .kh-section-header {
+            background: #F4F6F8 !important;
+            border-bottom: 1px solid rgba(101, 112, 130, 0.18) !important;
+        }
+
+        /* Make chart canvases themselves white so there is no green inside charts. */
+        .js-plotly-plot,
+        .plotly,
+        .plot-container,
+        .svg-container,
+        .main-svg,
+        .bglayer rect.bg {
+            background: #FFFFFF !important;
+        }
+
+        /* Streamlit info boxes can keep their blue alert colour, but should sit on white cards. */
+        div[data-testid="stAlert"] {
+            border-radius: 10px !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+
+# ============================================================
+# Strict visual contract: green canvas, white cards, visible sidebar
+# ============================================================
+
+st.markdown(
+    """
+    <style>
+        /* 1) Green only belongs to the outer page/canvas. */
+        html,
+        body,
+        .stApp,
+        [data-testid="stAppViewContainer"] {
+            background: linear-gradient(180deg, #C5E4CE 0%, #D8EFDF 45%, #F5FCF7 100%) !important;
+        }
+
+        /* 2) Keep the desktop sidebar visible/open and white. Edge/Safari can remember a collapsed state. */
+        [data-testid="stSidebar"],
+        [data-testid="stSidebar"] > div {
+            background: #FFFFFF !important;
+        }
+
+        @media (min-width: 900px) {
+            section[data-testid="stSidebar"] {
+                display: block !important;
+                visibility: visible !important;
+                transform: translateX(0px) !important;
+                opacity: 1 !important;
+                min-width: 18rem !important;
+                width: 18rem !important;
+                max-width: 18rem !important;
+                left: 0 !important;
+            }
+        }
+
+        /* 3) Any framed/bordered Streamlit section must be white inside. */
+        div[data-testid="stVerticalBlockBorderWrapper"],
+        div[data-testid="stVerticalBlockBorderWrapper"] > div,
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlock"],
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"],
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"],
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stElementContainer"],
+        div[data-testid="stVerticalBlockBorderWrapper"] .element-container,
+        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMarkdownContainer"] {
+            background-color: #FFFFFF !important;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            border: 1px solid rgba(101, 112, 130, 0.24) !important;
+            border-radius: 14px !important;
+            box-shadow: 0 6px 18px rgba(22, 83, 64, 0.07) !important;
+            overflow: hidden !important;
+        }
+
+        /* 4) Our custom cards and tables are white too. */
+        .kh-card,
+        .kh-chart-frame,
+        .compact-goal-card,
+        .kh-compact-food-row,
+        div[data-testid="stPlotlyChart"],
+        div[data-testid="stDataFrame"],
+        div[data-testid="stDataFrame"] *,
+        div[data-testid="stForm"],
+        div[data-testid="stExpander"] details,
+        div[data-testid="stExpander"] summary,
+        div[data-testid="stExpander"] div[role="button"] {
+            background-color: #FFFFFF !important;
+        }
+
+        /* 5) Card headers are the only grey parts inside cards. */
+        .kh-section-header {
+            background: #F4F6F8 !important;
+            border-bottom: 1px solid rgba(101, 112, 130, 0.18) !important;
+        }
+
+        /* 6) Plotly chart canvas must stay white. */
+        .js-plotly-plot,
+        .plotly,
+        .plot-container,
+        .svg-container,
+        .main-svg,
+        .bglayer rect.bg {
+            background: #FFFFFF !important;
+            fill: #FFFFFF !important;
+        }
+
+        /* 7) Keep progress bars visible after forcing card backgrounds white. */
+        div[data-testid="stProgress"] > div {
+            background-color: #EEF0F4 !important;
+        }
+
+        div[data-testid="stProgress"] > div > div,
+        div[data-testid="stProgress"] > div > div > div,
+        div[data-testid="stProgress"] > div > div > div > div {
+            background-color: #FF4B4B !important;
+        }
+
+        /* 8) Table headers grey, table body white. */
+        div[data-testid="stDataFrame"] thead tr,
+        div[data-testid="stDataFrame"] thead th {
+            background: #F4F6F8 !important;
+        }
+
+        div[data-testid="stDataFrame"] tbody tr,
+        div[data-testid="stDataFrame"] tbody td {
+            background: #FFFFFF !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# ============================================================
+# Final card body override: green canvas only, white framed interiors
+# ============================================================
+
+st.markdown(
+    """
+    <style>
+        /* The green fade is only the outside canvas/gutters. */
+        html,
+        body,
+        .stApp,
+        [data-testid="stAppViewContainer"] {
+            background: linear-gradient(180deg, #C5E4CE 0%, #D8EFDF 45%, #F5FCF7 100%) !important;
+        }
+
+        /* Sidebar is the left import/control panel and should stay visible/white on desktop. */
+        [data-testid="stSidebar"],
+        [data-testid="stSidebar"] > div,
+        [data-testid="stSidebar"] * {
+            background-color: #FFFFFF !important;
+        }
+
+        @media (min-width: 900px) {
+            section[data-testid="stSidebar"] {
+                display: block !important;
+                visibility: visible !important;
+                transform: translateX(0px) !important;
+                opacity: 1 !important;
+                min-width: 18rem !important;
+                width: 18rem !important;
+                max-width: 18rem !important;
+                left: 0 !important;
+            }
+        }
+
+        /* Every framed section/card body must be white, including nested columns and spacing. */
+        div[data-testid="stVerticalBlockBorderWrapper"],
+        div[data-testid="stVerticalBlockBorderWrapper"] > div,
+        div[data-testid="stVerticalBlockBorderWrapper"] div,
+        div[data-testid="stVerticalBlockBorderWrapper"] section,
+        div[data-testid="stVerticalBlockBorderWrapper"] article,
+        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlock"],
+        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stHorizontalBlock"],
+        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="column"],
+        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stElementContainer"],
+        div[data-testid="stVerticalBlockBorderWrapper"] .element-container,
+        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMarkdownContainer"] {
+            background-color: #FFFFFF !important;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            border: 1px solid rgba(101, 112, 130, 0.24) !important;
+            border-radius: 14px !important;
+            box-shadow: 0 6px 18px rgba(22, 83, 64, 0.07) !important;
+            overflow: hidden !important;
+        }
+
+        /* Grey header strip inside each card. */
+        .kh-section-header,
+        .kh-section-header *,
+        div[data-testid="stVerticalBlockBorderWrapper"] .kh-section-header,
+        div[data-testid="stVerticalBlockBorderWrapper"] .kh-section-header * {
+            background-color: #F4F6F8 !important;
+        }
+
+        .kh-section-header {
+            border-bottom: 1px solid rgba(101, 112, 130, 0.18) !important;
+        }
+
+        /* Custom cards, food rows and dataframes are white. */
+        .kh-card,
+        .kh-card *,
+        .kh-chart-frame,
+        .compact-goal-card,
+        .kh-compact-food-row,
+        .kh-compact-food-row *,
+        div[data-testid="stDataFrame"],
+        div[data-testid="stDataFrame"] * {
+            background-color: #FFFFFF !important;
+        }
+
+        /* Dataframe header is soft grey, body is white. */
+        div[data-testid="stDataFrame"] thead tr,
+        div[data-testid="stDataFrame"] thead th {
+            background-color: #F4F6F8 !important;
+        }
+
+        div[data-testid="stDataFrame"] tbody tr,
+        div[data-testid="stDataFrame"] tbody td {
+            background-color: #FFFFFF !important;
+        }
+
+        /* Plotly canvas is white inside the chart card. */
+        div[data-testid="stPlotlyChart"],
+        div[data-testid="stPlotlyChart"] *,
+        .js-plotly-plot,
+        .plotly,
+        .plot-container,
+        .svg-container {
+            background-color: #FFFFFF !important;
+        }
+
+        .main-svg,
+        .bglayer rect.bg {
+            fill: #FFFFFF !important;
+        }
+
+        /* Keep blue info boxes blue, not green. */
+        div[data-testid="stAlert"],
+        div[data-testid="stAlert"] * {
+            background-color: #DFF3FB !important;
+        }
+
+        /* Keep progress bars visible after the white-card override. */
+        div[data-testid="stProgress"] > div {
+            background-color: #EEF0F4 !important;
+        }
+
+        div[data-testid="stProgress"] > div > div,
+        div[data-testid="stProgress"] > div > div > div,
+        div[data-testid="stProgress"] > div > div > div > div {
+            background-color: #FF4B4B !important;
         }
     </style>
     """,
@@ -1021,6 +1682,24 @@ def show_trend_card(title, main_text, detail_text, status_text):
     )
 
 
+
+def render_section_header(title, right_text=""):
+    """Small grey card header used inside bordered dashboard cards."""
+    safe_title = html_escape(str(title or ""))
+    safe_right = html_escape(str(right_text or ""))
+    right_html = f"<div class='kh-section-header-right'>{safe_right}</div>" if safe_right else ""
+
+    st.markdown(
+        f"""
+        <div class='kh-section-header'>
+            <div class='kh-section-header-title'>{safe_title}</div>
+            {right_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 # ============================================================
 # Chart helpers
 # ============================================================
@@ -1040,7 +1719,11 @@ def lock_plotly_chart(fig):
     Hover/tap labels can still work, but the chart should not zoom or pan accidentally.
     """
     try:
-        fig.update_layout(dragmode=False)
+        fig.update_layout(
+            dragmode=False,
+            paper_bgcolor="#FFFFFF",
+            plot_bgcolor="#FFFFFF",
+        )
         fig.update_xaxes(fixedrange=True)
         fig.update_yaxes(fixedrange=True)
     except Exception:
@@ -1054,15 +1737,17 @@ def simple_bar_chart(df, x, y, title, chart_key=None):
         st.info("No data available for this chart.")
         return
 
-    fig = px.bar(df, x=x, y=y, title=title)
-    fig.update_layout(height=280, margin=dict(l=10, r=10, t=40, b=10))
+    fig = px.bar(df, x=x, y=y, title="")
+    fig.update_layout(height=260, margin=dict(l=10, r=10, t=12, b=10), title_text="")
 
     if chart_key is None:
         chart_key = f"bar_{title}_{x}_{y}"
 
     lock_plotly_chart(fig)
 
-    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
+    with st.container(border=True):
+        render_section_header(title)
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
 
 def simple_line_chart(df, x, y, title, chart_key=None):
@@ -1070,23 +1755,21 @@ def simple_line_chart(df, x, y, title, chart_key=None):
         st.info("No data available for this chart.")
         return
 
-    fig = px.line(df, x=x, y=y, markers=True, title=title)
-    fig.update_layout(height=280, margin=dict(l=10, r=10, t=40, b=10))
+    fig = px.line(df, x=x, y=y, markers=True, title="")
+    fig.update_layout(height=260, margin=dict(l=10, r=10, t=12, b=10), title_text="")
 
     if chart_key is None:
         chart_key = f"line_{title}_{x}_{y}"
 
     lock_plotly_chart(fig)
 
-    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
+    with st.container(border=True):
+        render_section_header(title)
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
 
 def macro_pie_chart(protein, carbs, fat, chart_key=None):
-    """Compact macro summary for mobile.
-
-    The old pie chart took too much space on iPhone and the percentage labels
-    could overlap. This version uses one stacked bar plus three tight rows.
-    """
+    """Clean native Streamlit macro summary for mobile."""
     protein_value = max(0.0, safe_float(protein))
     carbs_value = max(0.0, safe_float(carbs))
     fat_value = max(0.0, safe_float(fat))
@@ -1102,70 +1785,40 @@ def macro_pie_chart(protein, carbs, fat, chart_key=None):
             return f"{int(round(value))}g"
         return f"{value:.1f}g"
 
-    def rounded_percentages(values):
-        raw = [v / total * 100 for v in values]
-        rounded = [int(round(v)) for v in raw]
-        diff = 100 - sum(rounded)
-
-        if diff != 0:
-            order = sorted(range(len(raw)), key=lambda i: raw[i] - int(raw[i]), reverse=(diff > 0))
-            for i in range(abs(diff)):
-                rounded[order[i % len(order)]] += 1 if diff > 0 else -1
-
-        return rounded
-
-    colors = {
-        "carbs": "#63B892",
-        "protein": "#9072D8",
-        "fat": "#DABC57",
-        "value": "#3E475B",
-        "muted": "#7B8497",
+    raw = {
+        "Carbs": carbs_value / total * 100,
+        "Protein": protein_value / total * 100,
+        "Fat": fat_value / total * 100,
     }
 
-    carbs_pct, protein_pct, fat_pct = rounded_percentages([carbs_value, protein_value, fat_value])
+    rounded = {name: int(round(value)) for name, value in raw.items()}
+    diff = 100 - sum(rounded.values())
 
-    html = f"""
-    <div style="
-        border:1px solid rgba(128,128,128,0.18);
-        border-radius:14px;
-        padding:0.65rem 0.75rem;
-        background:rgba(255,255,255,0.70);
-        margin:0.2rem 0 0.35rem 0;
-    ">
-        <div style="
-            display:flex;
-            height:14px;
-            border-radius:999px;
-            overflow:hidden;
-            background:rgba(128,128,128,0.14);
-            margin-bottom:0.55rem;
-        ">
-            <div style="width:{carbs_pct}%; background:{colors['carbs']};"></div>
-            <div style="width:{protein_pct}%; background:{colors['protein']};"></div>
-            <div style="width:{fat_pct}%; background:{colors['fat']};"></div>
-        </div>
+    if diff:
+        order = sorted(raw.keys(), key=lambda k: raw[k] - int(raw[k]), reverse=(diff > 0))
+        for i in range(abs(diff)):
+            rounded[order[i % len(order)]] += 1 if diff > 0 else -1
 
-        <div style="display:flex; flex-direction:column; gap:0.38rem;">
-            <div style="display:grid; grid-template-columns:1fr auto auto; gap:0.6rem; align-items:center;">
-                <div style="font-size:0.92rem; font-weight:750; color:{colors['carbs']};">Carbs</div>
-                <div style="font-size:0.92rem; color:{colors['value']}; font-weight:750;">{format_grams(carbs_value)}</div>
-                <div style="font-size:0.92rem; color:{colors['carbs']}; font-weight:850; width:3.1rem; text-align:right;">{carbs_pct}%</div>
-            </div>
-            <div style="display:grid; grid-template-columns:1fr auto auto; gap:0.6rem; align-items:center;">
-                <div style="font-size:0.92rem; font-weight:750; color:{colors['protein']};">Protein</div>
-                <div style="font-size:0.92rem; color:{colors['value']}; font-weight:750;">{format_grams(protein_value)}</div>
-                <div style="font-size:0.92rem; color:{colors['protein']}; font-weight:850; width:3.1rem; text-align:right;">{protein_pct}%</div>
-            </div>
-            <div style="display:grid; grid-template-columns:1fr auto auto; gap:0.6rem; align-items:center;">
-                <div style="font-size:0.92rem; font-weight:750; color:{colors['fat']};">Fat</div>
-                <div style="font-size:0.92rem; color:{colors['value']}; font-weight:750;">{format_grams(fat_value)}</div>
-                <div style="font-size:0.92rem; color:{colors['fat']}; font-weight:850; width:3.1rem; text-align:right;">{fat_pct}%</div>
-            </div>
-        </div>
-    </div>
-    """
+    rows = [
+        ("🌾", "Carbs", carbs_value, rounded["Carbs"]),
+        ("💪", "Protein", protein_value, rounded["Protein"]),
+        ("🥑", "Fat", fat_value, rounded["Fat"]),
+    ]
 
-    st.markdown(html, unsafe_allow_html=True)
+    with st.container(border=True):
+        render_section_header("Macro split", "Protein · Carbs · Fat")
+        for icon, label, grams, pct in rows:
+            cols = st.columns([0.14, 0.42, 0.24, 0.20])
+            with cols[0]:
+                st.markdown(f"### {icon}")
+            with cols[1]:
+                st.markdown(f"**{label}**")
+            with cols[2]:
+                st.markdown(f"**{format_grams(grams)}**")
+            with cols[3]:
+                st.markdown(f"**{pct}%**")
+            st.progress(max(0, min(100, pct)))
+
 
 def health_notes_line_chart(df, y_col, title, chart_key):
     if df is None or df.empty or y_col not in df.columns:
@@ -1182,14 +1835,15 @@ def health_notes_line_chart(df, y_col, title, chart_key):
 
     temp = temp.sort_values("date")
 
-    fig = px.line(temp, x="date", y=y_col, markers=True, title=title)
+    fig = px.line(temp, x="date", y=y_col, markers=True, title="")
     fig.update_yaxes(range=[0, 10])
-    fig.update_layout(height=270, margin=dict(l=10, r=10, t=38, b=10))
+    fig.update_layout(height=250, margin=dict(l=10, r=10, t=12, b=10), title_text="")
 
     lock_plotly_chart(fig)
 
-    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
-
+    with st.container(border=True):
+        render_section_header(title)
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
 
 
@@ -3164,40 +3818,43 @@ handle_withings_callback()
 # ============================================================
 
 def render_app_header():
-    icon_exists = os.path.exists(K_HEALTH_ICON_FILE)
+    import base64
 
-    left, right = st.columns([0.12, 0.88])
+    icon_html = "<div class='kh-header-fallback'>🩺</div>"
 
-    with left:
-        if icon_exists:
-            st.image(K_HEALTH_ICON_FILE, width=44)
-        else:
-            st.markdown("<div style='font-size:2.3rem; line-height:1;'>🩺</div>", unsafe_allow_html=True)
+    if os.path.exists(K_HEALTH_ICON_FILE):
+        try:
+            with open(K_HEALTH_ICON_FILE, "rb") as icon_file:
+                encoded_icon = base64.b64encode(icon_file.read()).decode("utf-8")
 
-    with right:
-        st.markdown(
-            f"""
-            <div style="display:flex; align-items:center; gap:0.55rem; flex-wrap:wrap; margin-bottom:0.1rem;">
-                <div style="font-size:clamp(1.25rem, 5.4vw, 1.9rem); font-weight:850; line-height:0.98;">{APP_TITLE}</div>
-                <div style="
-                    background: linear-gradient(135deg, #63B892, #2F6CC4);
-                    color: white;
-                    border-radius: 999px;
-                    padding: 0.12rem 0.38rem;
-                    font-size:0.68rem;
-                    font-weight:850;
-                    letter-spacing:0.02rem;
-                ">{APP_VERSION}</div>
+            icon_html = (
+                "<img class='kh-header-logo' "
+                f"src='data:image/png;base64,{encoded_icon}' "
+                "alt='K Health logo'>"
+            )
+        except Exception:
+            icon_html = "<div class='kh-header-fallback'>🩺</div>"
+
+    st.markdown(
+        f"""
+        <div class="kh-app-header">
+            <div class="kh-header-icon-wrap">
+                {icon_html}
             </div>
-            <div style="font-size:0.75rem; opacity:0.74; line-height:1.35;">
-                {APP_DESCRIPTION}<br>
-                🗓️ {APP_REVIEW_DISPLAY} · Build {APP_BUILD}
+            <div class="kh-header-text">
+                <div class="kh-header-title-row">
+                    <span class="kh-header-title">{html_escape(APP_TITLE)}</span>
+                    <span class="kh-version-pill">{html_escape(APP_VERSION)}</span>
+                </div>
+                <div class="kh-header-subtitle">
+                    {html_escape(APP_DESCRIPTION)}<br>
+                    🗓️ {html_escape(APP_REVIEW_DISPLAY)} · Build {html_escape(APP_BUILD)}
+                </div>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 render_app_header()
 
@@ -3253,103 +3910,15 @@ with st.sidebar:
     today_start, today_end = today_date(), today_date()
 
     st.caption(f"History: {pd.to_datetime(history_start).strftime('%a %d-%m-%y') } to {pd.to_datetime(history_end).strftime('%a %d-%m-%y') }")
-
-    st.divider()
-    st.header("Withings")
-
-    if WITHINGS_CLIENT_ID and WITHINGS_CLIENT_SECRET:
-        auth_url = build_withings_auth_url()
-        st.link_button("Connect / Reconnect Withings", auth_url, use_container_width=True)
-
-        if st.button("Clear Withings token file", use_container_width=True):
-            delete_tokens()
-            st.cache_data.clear()
-            st.success("Withings local token file cleared. If using Streamlit Secrets, the secret backup has not been changed.")
-
-        current_tokens_for_backup = load_tokens()
-
-        if current_tokens_for_backup and current_tokens_for_backup.get("refresh_token"):
-            with st.expander("Cloud token backup"):
-                st.caption(
-                    "For Streamlit Cloud, copy this into App settings → Secrets after a successful Withings connection. "
-                    "This helps the app reconnect after a cloud restart. Treat it like a password."
-                )
-                token_backup_text = (
-                    'WITHINGS_TOKENS_JSON = """\n'
-                    + json.dumps(current_tokens_for_backup, indent=2)
-                    + '\n"""'
-                )
-                st.text_area(
-                    "Copy this whole block into Streamlit Secrets",
-                    token_backup_text,
-                    height=240,
-                    key="withings_token_backup_text",
-                )
-    else:
-        st.warning("Add WITHINGS_CLIENT_ID and WITHINGS_CLIENT_SECRET to your .env file locally, or to Streamlit Secrets in the cloud.")
-
-    st.divider()
-    st.header("Google Drive Backup")
-
-    if not GOOGLE_DRIVE_LIBS_AVAILABLE:
-        st.warning("Google Drive packages are not installed.")
-    else:
-        drive_service, drive_error = get_google_drive_service()
-
-        if drive_service is not None:
-            st.success("Google Drive is connected.")
-        else:
-            st.info(drive_error or "Google Drive is not connected yet.")
-
-        if st.button("Connect Google Drive", use_container_width=True):
-            ok, message = connect_google_drive_locally()
-
-            if ok:
-                st.success(message)
-                st.rerun()
-            else:
-                st.error(message)
-
-        if st.button("Back up Withings tokens to Google Drive now", use_container_width=True):
-            tokens_for_drive_backup = load_tokens()
-
-            if tokens_for_drive_backup and tokens_for_drive_backup.get("refresh_token"):
-                ok, message = backup_withings_tokens_to_google_drive(tokens_for_drive_backup)
-
-                if ok:
-                    st.success(message)
-                else:
-                    st.error(message)
-            else:
-                st.warning("No Withings token with refresh token found yet.")
-
-        if st.button("Restore Withings tokens from Google Drive", use_container_width=True):
-            restored_tokens, restore_message = restore_withings_tokens_from_google_drive()
-
-            if restored_tokens:
-                st.success(restore_message)
-                st.cache_data.clear()
-                st.rerun()
-            else:
-                st.error(restore_message)
-
-        google_token_backup = google_drive_token_backup_text()
-
-        if google_token_backup:
-            with st.expander("Google Drive token backup for Streamlit Secrets"):
-                st.caption(
-                    "Copy this into Streamlit Cloud Secrets if you want the cloud app to access Google Drive after restarts. "
-                    "Treat it like a password."
-                )
-                st.text_area(
-                    "Copy this whole block into Streamlit Secrets",
-                    google_token_backup,
-                    height=240,
-                    key="google_drive_token_backup_text",
-                )
-
     st.divider()
     st.header("Food Data")
+    st.link_button(
+        "Open MyNetDiary export page",
+        "https://www.mynetdiary.com/analysisNavigator.do?selectedItem=dataExport",
+        use_container_width=True,
+        help="Open MyNetDiary Data Export so you can download the latest .xls file, then upload it below.",
+    )
+    st.caption("Download the latest MyNetDiary export, then upload the .xls file here.")
 
     uploaded_food_files = st.file_uploader(
         "Upload MyNetDiary export",
@@ -3375,6 +3944,105 @@ with st.sidebar:
             st.caption(f"Google Drive food file check: {food_drive_error}")
         else:
             st.caption("No food file uploaded yet and no saved food file found in Google Drive.")
+
+    st.divider()
+
+    with st.expander("⚙️ Connections & backup", expanded=False):
+        st.caption("Only open this when you need to reconnect Withings or manage Google Drive backups.")
+
+        st.markdown("#### Withings")
+
+        if WITHINGS_CLIENT_ID and WITHINGS_CLIENT_SECRET:
+            auth_url = build_withings_auth_url()
+            st.link_button("Connect / Reconnect Withings", auth_url, use_container_width=True)
+
+            if st.button("Clear Withings token file", use_container_width=True):
+                delete_tokens()
+                st.cache_data.clear()
+                st.success("Withings local token file cleared. If using Streamlit Secrets, the secret backup has not been changed.")
+
+            current_tokens_for_backup = load_tokens()
+
+            if current_tokens_for_backup and current_tokens_for_backup.get("refresh_token"):
+                with st.expander("Cloud token backup", expanded=False):
+                    st.caption(
+                        "For Streamlit Cloud, copy this into App settings → Secrets after a successful Withings connection. "
+                        "This helps the app reconnect after a cloud restart. Treat it like a password."
+                    )
+                    token_backup_text = (
+                        'WITHINGS_TOKENS_JSON = """\n'
+                        + json.dumps(current_tokens_for_backup, indent=2)
+                        + '\n"""'
+                    )
+                    st.text_area(
+                        "Copy this whole block into Streamlit Secrets",
+                        token_backup_text,
+                        height=180,
+                        key="withings_token_backup_text",
+                    )
+        else:
+            st.warning("Add WITHINGS_CLIENT_ID and WITHINGS_CLIENT_SECRET to your .env file locally, or to Streamlit Secrets in the cloud.")
+
+        st.divider()
+        st.markdown("#### Google Drive Backup")
+
+        if not GOOGLE_DRIVE_LIBS_AVAILABLE:
+            st.warning("Google Drive packages are not installed.")
+        else:
+            drive_service, drive_error = get_google_drive_service()
+
+            if drive_service is not None:
+                st.caption("✅ Google Drive connected")
+            else:
+                st.caption(drive_error or "Google Drive is not connected yet.")
+
+            if st.button("Connect Google Drive", use_container_width=True):
+                ok, message = connect_google_drive_locally()
+
+                if ok:
+                    st.success(message)
+                    st.rerun()
+                else:
+                    st.error(message)
+
+            if st.button("Back up Withings tokens to Google Drive", use_container_width=True):
+                tokens_for_drive_backup = load_tokens()
+
+                if tokens_for_drive_backup and tokens_for_drive_backup.get("refresh_token"):
+                    ok, message = backup_withings_tokens_to_google_drive(tokens_for_drive_backup)
+
+                    if ok:
+                        st.success(message)
+                    else:
+                        st.error(message)
+                else:
+                    st.warning("No Withings token with refresh token found yet.")
+
+            if st.button("Restore Withings tokens from Google Drive", use_container_width=True):
+                restored_tokens, restore_message = restore_withings_tokens_from_google_drive()
+
+                if restored_tokens:
+                    st.success(restore_message)
+                    st.cache_data.clear()
+                    st.rerun()
+                else:
+                    st.error(restore_message)
+
+            google_token_backup = google_drive_token_backup_text()
+
+            if google_token_backup:
+                with st.expander("Google Drive token backup for Streamlit Secrets", expanded=False):
+                    st.caption(
+                        "Copy this into Streamlit Cloud Secrets if you want the cloud app to access Google Drive after restarts. "
+                        "Treat it like a password."
+                    )
+                    st.text_area(
+                        "Copy this whole block into Streamlit Secrets",
+                        google_token_backup,
+                        height=180,
+                        key="google_drive_token_backup_text",
+                    )
+
 
 
 # ============================================================
@@ -3547,7 +4215,7 @@ def render_kpi_grid(cards):
             pct = max(0, min(100, safe_int(card.get("progress", 0), 0)))
             show_progress = bool(card.get("show_progress", True))
 
-            line = f"**{html_escape(title)} = {html_escape(value)}**"
+            line = f"<strong>{html_escape(title)} = {html_escape(value)}</strong>"
             if sub:
                 line += f" <span class='kh-muted'>({html_escape(sub)})</span>"
 
@@ -3563,7 +4231,7 @@ def render_kpi_grid(cards):
             if show_progress:
                 st.progress(pct)
 
-                bottom = f"**{pct}%**"
+                bottom = f"<strong>{pct}%</strong>"
                 if footer:
                     bottom += f" <span class='kh-muted'>({html_escape(footer)})</span>"
 
@@ -3667,7 +4335,7 @@ def render_health_score(score, parts):
 
 
 def render_food_today_card(today_food_table, total_calories):
-    """Render today's food with Streamlit-native components only."""
+    """Render today's food as a compact white card with a grey header."""
     display = clean_food_dataframe(today_food_table)
 
     if display.empty:
@@ -3681,38 +4349,33 @@ def render_food_today_card(today_food_table, total_calories):
     total_text = f"{total_calories:,.0f} kcal" if total_calories is not None and not pd.isna(total_calories) else ""
 
     with st.container(border=True):
-        title_cols = st.columns([0.72, 0.28])
+        render_section_header("Food Today", total_text)
 
-        with title_cols[0]:
-            st.markdown("### Food Today")
-
-        with title_cols[1]:
-            if total_text:
-                st.metric("Total", total_text)
-
-        st.divider()
-
+        rows_html = []
         for _, row in display.iterrows():
-            food = str(row.get("food", "")).strip()
+            food = html_escape(str(row.get("food", "")).strip())
             calories = safe_float(row.get("calories", 0), 0)
-            cal_text = f"{calories:,.0f} kcal" if calories > 0 else ""
+            cal_text = html_escape(f"{calories:,.0f} kcal" if calories > 0 else "")
+            rows_html.append(
+                f"""
+                <div class='kh-compact-food-row'>
+                    <div class='kh-compact-food-name'>{food}</div>
+                    <div class='kh-compact-food-cal'>{cal_text}</div>
+                </div>
+                """
+            )
 
-            row_cols = st.columns([0.74, 0.26])
-
-            with row_cols[0]:
-                st.markdown(f"**{food}**")
-
-            with row_cols[1]:
-                st.markdown(f"**{cal_text}**")
+        st.markdown("".join(rows_html), unsafe_allow_html=True)
 
 
 def render_data_status_bar(withings_connected, food_connected):
-    """Render connection status with Streamlit-native components only."""
+    """Render connection status as a compact white card with a grey header."""
     withings_text = "Withings: Connected" if withings_connected else "Withings: Needs attention"
     food_text = "MyNetDiary: Connected" if food_connected else "MyNetDiary: No food file"
     status_text = "Data status OK" if withings_connected and food_connected else "Data status needs attention"
 
     with st.container(border=True):
+        render_section_header("Data status", "OK" if withings_connected and food_connected else "Needs attention")
         st.markdown(f"**{status_text}**")
         st.caption(f"{withings_text} - {food_text}")
 
@@ -4009,7 +4672,7 @@ def sleep_timeline_chart(sleep_table, title, chart_key):
         hourly,
         x="hour_label",
         y="minutes_asleep",
-        title=title,
+        title="",
         labels={"hour_label": "", "minutes_asleep": "Minutes asleep"},
     )
     fig.update_traces(marker_color=css_color("sleep"))
@@ -4020,11 +4683,13 @@ def sleep_timeline_chart(sleep_table, title, chart_key):
         ticktext=[f"{h:02d}:00" for h in range(0, 25, 4)],
     )
     fig.update_yaxes(title_text=None, range=[0, 60], showticklabels=False)
-    fig.update_layout(height=240, margin=dict(l=8, r=8, t=38, b=8), bargap=0.12)
+    fig.update_layout(height=225, margin=dict(l=8, r=8, t=12, b=8), bargap=0.12, title_text="")
 
     lock_plotly_chart(fig)
 
-    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
+    with st.container(border=True):
+        render_section_header(title)
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
 
 def daily_sleep_timing_chart(sleep_table, title, chart_key):
@@ -4074,7 +4739,7 @@ def daily_sleep_timing_chart(sleep_table, title, chart_key):
         y="date_label",
         base="start_hour",
         orientation="h",
-        title=title,
+        title="",
         labels={"date_label": "", "duration": "", "start_hour": "Hour"},
     )
     fig.update_traces(marker_color=css_color("sleep"), width=0.72)
@@ -4086,11 +4751,13 @@ def daily_sleep_timing_chart(sleep_table, title, chart_key):
         ticktext=[f"{h:02d}:00" for h in range(0, 25, 2)],
     )
     fig.update_yaxes(title_text=None)
-    fig.update_layout(height=min(900, max(330, 34 * unique_days + 80)), margin=dict(l=8, r=8, t=38, b=8), showlegend=False)
+    fig.update_layout(height=min(860, max(300, 32 * unique_days + 70)), margin=dict(l=8, r=8, t=12, b=8), showlegend=False, title_text="")
 
     lock_plotly_chart(fig)
 
-    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
+    with st.container(border=True):
+        render_section_header(title)
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
 
 def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_value=None, goal_label="Target"):
@@ -4134,7 +4801,7 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
             x="plot_date",
             y=value_col,
             markers=True,
-            title=title,
+            title="",
             labels={"plot_date": "", value_col: ""},
             hover_data={"date_label": True, "plot_date": False},
         )
@@ -4147,7 +4814,7 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
                 y=value_col,
                 color="status",
                 color_discrete_map=color_map,
-                title=title,
+                title="",
                 labels={"plot_date": "", value_col: ""},
                 hover_data={"date_label": True, "plot_date": False},
             )
@@ -4158,7 +4825,7 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
                 x="plot_date",
                 y=value_col,
                 markers=True,
-                title=title,
+                title="",
                 labels={"plot_date": "", value_col: ""},
                 hover_data={"date_label": True, "plot_date": False},
             )
@@ -4168,7 +4835,7 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
                 chart_df,
                 x="plot_date",
                 y=value_col,
-                title=title,
+                title="",
                 labels={"plot_date": "", value_col: ""},
                 hover_data={"date_label": True, "plot_date": False},
             )
@@ -4219,11 +4886,15 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
         tickangle=0,
     )
     fig.update_yaxes(title_text=None)
-    fig.update_layout(height=240, margin=dict(l=8, r=8, t=42, b=18), bargap=0.20)
+    fig.update_layout(height=225, margin=dict(l=8, r=8, t=12, b=18), bargap=0.20, title_text="")
 
     lock_plotly_chart(fig)
 
-    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
+    header_right = goal_label if goal_value is not None and not pd.isna(goal_value) else ""
+
+    with st.container(border=True):
+        render_section_header(title, header_right)
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
 
 # ============================================================
@@ -4406,8 +5077,6 @@ with tabs[0]:
     ]
     render_kpi_grid(kpi_cards)
 
-    st.markdown("### Today at a Glance")
-
     today_glance_end = latest_data_day
     today_glance_start = latest_data_day - timedelta(days=6)
 
@@ -4416,58 +5085,61 @@ with tabs[0]:
     today_glance_food_daily = filter_by_date(food_daily, today_glance_start, today_glance_end)
     today_glance_weight = filter_by_date(weight_df, today_glance_start, today_glance_end)
 
-    g1, g2 = st.columns(2)
+    with st.container(border=True):
+        render_section_header("Today at a Glance")
 
-    with g1:
-        daily_total_chart(
-            today_glance_sleep,
-            "sleep_hours",
-            "Sleep Last 7 Days",
-            "today_glance_sleep",
-            chart_type="bar",
-            goal_value=goals.get("sleep_hours", 7),
-            goal_label="7 hr target",
-        )
+        g1, g2 = st.columns(2)
 
-    with g2:
-        daily_total_chart(
-            today_glance_activity,
-            "steps",
-            "Steps Last 7 Days",
-            "today_glance_steps",
-            chart_type="bar",
-            goal_value=goals.get("steps", 7000),
-            goal_label="7000 step target",
-        )
-
-    g3, g4 = st.columns(2)
-
-    with g3:
-        daily_total_chart(
-            today_glance_food_daily,
-            "calories",
-            "Calories Last 7 Days",
-            "today_glance_calories",
-            chart_type="line",
-            goal_value=goals.get("calories", 1800),
-            goal_label="1800 kcal target",
-        )
-
-    with g4:
-        if today_glance_weight.empty:
-            st.info("No weight data available for this chart.")
-        else:
-            today_weight_chart = today_glance_weight.copy()
-            today_weight_chart["weight_lb"] = today_weight_chart["weight_kg"] * 2.2046226218
+        with g1:
             daily_total_chart(
-                today_weight_chart,
-                "weight_lb",
-                "Weight Last 7 Days",
-                "today_glance_weight",
-                chart_type="line",
-                goal_value=goals.get("target_weight_stones", 16) * 14,
-                goal_label="Target weight",
+                today_glance_sleep,
+                "sleep_hours",
+                "Sleep Last 7 Days",
+                "today_glance_sleep",
+                chart_type="bar",
+                goal_value=goals.get("sleep_hours", 7),
+                goal_label="7 hr target",
             )
+
+        with g2:
+            daily_total_chart(
+                today_glance_activity,
+                "steps",
+                "Steps Last 7 Days",
+                "today_glance_steps",
+                chart_type="bar",
+                goal_value=goals.get("steps", 7000),
+                goal_label="7000 step target",
+            )
+
+        g3, g4 = st.columns(2)
+
+        with g3:
+            daily_total_chart(
+                today_glance_food_daily,
+                "calories",
+                "Calories Last 7 Days",
+                "today_glance_calories",
+                chart_type="line",
+                goal_value=goals.get("calories", 1800),
+                goal_label="1800 kcal target",
+            )
+
+        with g4:
+            if today_glance_weight.empty:
+                st.info("No weight data available for this chart.")
+            else:
+                today_weight_chart = today_glance_weight.copy()
+                today_weight_chart["weight_lb"] = today_weight_chart["weight_kg"] * 2.2046226218
+                daily_total_chart(
+                    today_weight_chart,
+                    "weight_lb",
+                    "Weight Last 7 Days",
+                    "today_glance_weight",
+                    chart_type="line",
+                    goal_value=goals.get("target_weight_stones", 16) * 14,
+                    goal_label="Target weight",
+                )
 
     st.divider()
 
@@ -4588,60 +5260,62 @@ with tabs[1]:
     )
 
     st.divider()
-    st.markdown("### Trends")
 
-    h1, h2 = st.columns(2)
+    with st.container(border=True):
+        render_section_header("Trends")
 
-    with h1:
-        daily_total_chart(
-            history_sleep,
-            "sleep_hours",
-            f"Sleep Hours Last {selected_range_label(history_days)}",
-            "history_sleep_bar",
-            chart_type="bar",
-            goal_value=goals.get("sleep_hours", 7),
-            goal_label="7 hr target",
-        )
+        h1, h2 = st.columns(2)
 
-    with h2:
-        daily_total_chart(
-            history_activity,
-            "steps",
-            f"Daily Steps Last {selected_range_label(history_days)}",
-            "history_steps_bar",
-            chart_type="bar",
-            goal_value=goals.get("steps", 7000),
-            goal_label="7000 step target",
-        )
-
-    h3, h4 = st.columns(2)
-
-    with h3:
-        daily_total_chart(
-            history_food_daily,
-            "calories",
-            f"Calories Last {selected_range_label(history_days)}",
-            "history_calories_line",
-            chart_type="line",
-            goal_value=goals.get("calories", 1800),
-            goal_label="1800 kcal target",
-        )
-
-    with h4:
-        if history_weight.empty:
-            st.info("No weight data found for this range.")
-        else:
-            weight_chart = history_weight.copy()
-            weight_chart["weight_lb"] = weight_chart["weight_kg"] * 2.2046226218
+        with h1:
             daily_total_chart(
-                weight_chart,
-                "weight_lb",
-                f"Weight Last {selected_range_label(history_days)}",
-                "history_weight_line",
-                chart_type="line",
-                goal_value=goals.get("target_weight_stones", 16) * 14,
-                goal_label="Target weight",
+                history_sleep,
+                "sleep_hours",
+                f"Sleep Hours Last {selected_range_label(history_days)}",
+                "history_sleep_bar",
+                chart_type="bar",
+                goal_value=goals.get("sleep_hours", 7),
+                goal_label="7 hr target",
             )
+
+        with h2:
+            daily_total_chart(
+                history_activity,
+                "steps",
+                f"Daily Steps Last {selected_range_label(history_days)}",
+                "history_steps_bar",
+                chart_type="bar",
+                goal_value=goals.get("steps", 7000),
+                goal_label="7000 step target",
+            )
+
+        h3, h4 = st.columns(2)
+
+        with h3:
+            daily_total_chart(
+                history_food_daily,
+                "calories",
+                f"Calories Last {selected_range_label(history_days)}",
+                "history_calories_line",
+                chart_type="line",
+                goal_value=goals.get("calories", 1800),
+                goal_label="1800 kcal target",
+            )
+
+        with h4:
+            if history_weight.empty:
+                st.info("No weight data found for this range.")
+            else:
+                weight_chart = history_weight.copy()
+                weight_chart["weight_lb"] = weight_chart["weight_kg"] * 2.2046226218
+                daily_total_chart(
+                    weight_chart,
+                    "weight_lb",
+                    f"Weight Last {selected_range_label(history_days)}",
+                    "history_weight_line",
+                    chart_type="line",
+                    goal_value=goals.get("target_weight_stones", 16) * 14,
+                    goal_label="Target weight",
+                )
 
     st.divider()
 
@@ -4664,18 +5338,19 @@ with tabs[1]:
 
     st.divider()
 
-    st.markdown("### Food Last Selected Days")
+    with st.container(border=True):
+        render_section_header("Food Last Selected Days")
 
-    history_food_display = prepare_food_table(history_food)
+        history_food_display = prepare_food_table(history_food)
 
-    if history_food_display.empty:
-        st.info("No food data found for this range.")
-    else:
-        st.dataframe(
-            history_food_display,
-            use_container_width=True,
-            hide_index=True,
-        )
+        if history_food_display.empty:
+            st.info("No food data found for this range.")
+        else:
+            st.dataframe(
+                history_food_display,
+                use_container_width=True,
+                hide_index=True,
+            )
 
 
 
