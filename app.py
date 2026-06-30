@@ -50,10 +50,10 @@ st.set_page_config(
 
 APP_TITLE = "Karl's Health Dashboard"
 APP_LOGIN_ID = "K Health"
-APP_VERSION = "v2.2.4"
-APP_REVIEW_DATE = "30-06-26 01:45"
+APP_VERSION = "v2.2.5"
+APP_REVIEW_DATE = "30-06-26 01:55"
 APP_REVIEW_DISPLAY = "Reviewed Tue 30 Jun 2026"
-APP_BUILD = "20260630-0145"
+APP_BUILD = "20260630-0155"
 APP_DESCRIPTION = "Bringing together Withings and MyNetDiary Pro"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -3441,7 +3441,7 @@ def render_kpi_grid(cards):
             pct = max(0, min(100, safe_int(card.get("progress", 0), 0)))
 
             with st.container(border=True):
-                st.caption(f"{icon} {title}".strip())
+                st.caption(title)
                 st.markdown(f"### {value}")
 
                 if sub:
@@ -4278,13 +4278,22 @@ with tabs[0]:
     render_kpi_grid(kpi_cards)
 
     st.markdown("### Today at a Glance")
+
+    today_glance_end = latest_data_day
+    today_glance_start = latest_data_day - timedelta(days=6)
+
+    today_glance_sleep = filter_by_date(sleep_df, today_glance_start, today_glance_end)
+    today_glance_activity = filter_by_date(activity_df, today_glance_start, today_glance_end)
+    today_glance_food_daily = filter_by_date(food_daily, today_glance_start, today_glance_end)
+    today_glance_weight = filter_by_date(weight_df, today_glance_start, today_glance_end)
+
     g1, g2 = st.columns(2)
 
     with g1:
         daily_total_chart(
-            history_sleep,
+            today_glance_sleep,
             "sleep_hours",
-            f"Sleep Last {selected_range_label(history_days)}",
+            "Sleep Last 7 Days",
             "today_glance_sleep",
             chart_type="bar",
             goal_value=goals.get("sleep_hours", 7),
@@ -4293,9 +4302,9 @@ with tabs[0]:
 
     with g2:
         daily_total_chart(
-            history_activity,
+            today_glance_activity,
             "steps",
-            f"Steps Last {selected_range_label(history_days)}",
+            "Steps Last 7 Days",
             "today_glance_steps",
             chart_type="bar",
             goal_value=goals.get("steps", 7000),
@@ -4306,9 +4315,9 @@ with tabs[0]:
 
     with g3:
         daily_total_chart(
-            history_food_daily,
+            today_glance_food_daily,
             "calories",
-            f"Calories Last {selected_range_label(history_days)}",
+            "Calories Last 7 Days",
             "today_glance_calories",
             chart_type="line",
             goal_value=goals.get("calories", 1800),
@@ -4316,15 +4325,15 @@ with tabs[0]:
         )
 
     with g4:
-        if history_weight.empty:
+        if today_glance_weight.empty:
             st.info("No weight data available for this chart.")
         else:
-            today_weight_chart = history_weight.copy()
+            today_weight_chart = today_glance_weight.copy()
             today_weight_chart["weight_lb"] = today_weight_chart["weight_kg"] * 2.2046226218
             daily_total_chart(
                 today_weight_chart,
                 "weight_lb",
-                f"Weight Last {selected_range_label(history_days)}",
+                "Weight Last 7 Days",
                 "today_glance_weight",
                 chart_type="line",
                 goal_value=goals.get("target_weight_stones", 16) * 14,
