@@ -32,6 +32,72 @@ import streamlit.components.v1 as components
 import plotly.express as px
 import plotly.graph_objects as go
 
+def apply_mobile_compact_css():
+    st.markdown("""
+    <style>
+    .block-container {
+        padding-top: 0.6rem !important;
+        padding-bottom: 0.8rem !important;
+        padding-left: 0.45rem !important;
+        padding-right: 0.45rem !important;
+        max-width: 100% !important;
+    }
+
+    h1 { font-size: 1.45rem !important; margin: 0.2rem 0 0.35rem 0 !important; }
+    h2 { font-size: 1.15rem !important; margin: 0.45rem 0 0.25rem 0 !important; }
+    h3 { font-size: 1rem !important; margin: 0.35rem 0 0.2rem 0 !important; }
+
+    div[data-testid="stMetric"] {
+        padding: 0.35rem 0.45rem !important;
+        border-radius: 0.7rem !important;
+    }
+
+    div[data-testid="stMetric"] label {
+        font-size: 0.72rem !important;
+    }
+
+    div[data-testid="stMetricValue"] {
+        font-size: 1.15rem !important;
+    }
+
+    div[data-testid="stVerticalBlock"] {
+        gap: 0.35rem !important;
+    }
+
+    div[data-testid="column"] {
+        padding: 0.15rem !important;
+    }
+
+    .stButton button {
+        padding: 0.25rem 0.45rem !important;
+        font-size: 0.8rem !important;
+        min-height: 2rem !important;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        padding: 0.35rem 0.45rem !important;
+        font-size: 0.8rem !important;
+    }
+
+    div[data-testid="stExpander"] {
+        margin: 0.25rem 0 !important;
+    }
+
+    div[data-testid="stDataFrame"] {
+        font-size: 0.78rem !important;
+    }
+
+    hr {
+        margin: 0.35rem 0 !important;
+    }
+
+    .element-container {
+        margin-bottom: 0.25rem !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+
 
 # ============================================================
 # K Health
@@ -42,6 +108,8 @@ st.set_page_config(
     page_icon="🩺",
     layout="wide",
 )
+
+apply_mobile_compact_css()
 
 
 # ============================================================
@@ -3897,7 +3965,7 @@ def sleep_timeline_chart(sleep_table, title, chart_key):
         ticktext=[f"{h:02d}:00" for h in range(0, 25, 4)],
     )
     fig.update_yaxes(title_text=None, range=[0, 60], showticklabels=False)
-    fig.update_layout(height=320, margin=dict(l=8, r=8, t=38, b=8), bargap=0.12)
+    fig.update_layout(height=240, margin=dict(l=8, r=8, t=38, b=8), bargap=0.12)
 
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
@@ -4092,7 +4160,7 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
         tickangle=0,
     )
     fig.update_yaxes(title_text=None)
-    fig.update_layout(height=330, margin=dict(l=8, r=8, t=42, b=18), bargap=0.20)
+    fig.update_layout(height=240, margin=dict(l=8, r=8, t=42, b=18), bargap=0.20)
 
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
@@ -4974,7 +5042,7 @@ with tabs[6]:
     st.text_area(
         "Hospital overview text",
         hospital_summary,
-        height=360,
+        height=240,
         help="Use the copy button above, or tap inside this box and select/copy the text.",
         key="hospital_summary_text_area",
     )
