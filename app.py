@@ -50,10 +50,10 @@ st.set_page_config(
 
 APP_TITLE = "Karl's Health Dashboard"
 APP_LOGIN_ID = "K Health"
-APP_VERSION = "v2.2.3"
-APP_REVIEW_DATE = "30-06-26 01:35"
+APP_VERSION = "v2.2.4"
+APP_REVIEW_DATE = "30-06-26 01:45"
 APP_REVIEW_DISPLAY = "Reviewed Tue 30 Jun 2026"
-APP_BUILD = "20260630-0135"
+APP_BUILD = "20260630-0145"
 APP_DESCRIPTION = "Bringing together Withings and MyNetDiary Pro"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -3544,10 +3544,7 @@ def render_health_score(score, parts):
 
 
 def render_food_today_card(today_food_table, total_calories):
-    """Render today's food with Streamlit-native components only.
-
-    This avoids raw HTML showing in Streamlit Cloud / browser exports.
-    """
+    """Render today's food with Streamlit-native components only."""
     display = clean_food_dataframe(today_food_table)
 
     if display.empty:
@@ -3558,46 +3555,30 @@ def render_food_today_card(today_food_table, total_calories):
     display["calories"] = pd.to_numeric(display.get("calories", 0), errors="coerce").fillna(0)
     display = display.sort_values(["meal", "food"]).head(12)
 
-    emoji_map = {
-        "renapro": "??",
-        "banana": "??",
-        "oat": "??",
-        "rice cake": "??",
-        "protein bar": "??",
-        "apple": "??",
-        "pear": "??",
-        "salad": "??",
-        "coffee": "?",
-        "water": "??",
-        "sugar": "?",
-    }
-
     total_text = f"{total_calories:,.0f} kcal" if total_calories is not None and not pd.isna(total_calories) else ""
 
     with st.container(border=True):
         title_cols = st.columns([0.72, 0.28])
+
         with title_cols[0]:
             st.markdown("### Food Today")
+
         with title_cols[1]:
             if total_text:
                 st.metric("Total", total_text)
 
+        st.divider()
+
         for _, row in display.iterrows():
             food = str(row.get("food", "")).strip()
-            food_low = food.lower()
-            icon = "???"
-
-            for needle, emoji in emoji_map.items():
-                if needle in food_low:
-                    icon = emoji
-                    break
-
             calories = safe_float(row.get("calories", 0), 0)
             cal_text = f"{calories:,.0f} kcal" if calories > 0 else ""
 
             row_cols = st.columns([0.74, 0.26])
+
             with row_cols[0]:
-                st.markdown(f"**{icon} {food}**")
+                st.markdown(f"**{food}**")
+
             with row_cols[1]:
                 st.markdown(f"**{cal_text}**")
 
@@ -3606,11 +3587,11 @@ def render_data_status_bar(withings_connected, food_connected):
     """Render connection status with Streamlit-native components only."""
     withings_text = "Withings: Connected" if withings_connected else "Withings: Needs attention"
     food_text = "MyNetDiary: Connected" if food_connected else "MyNetDiary: No food file"
-    status_icon = "?" if withings_connected and food_connected else "??"
+    status_text = "Data status OK" if withings_connected and food_connected else "Data status needs attention"
 
     with st.container(border=True):
-        st.markdown(f"**{status_icon} Data status**")
-        st.caption(f"{withings_text} ? {food_text}")
+        st.markdown(f"**{status_text}**")
+        st.caption(f"{withings_text} - {food_text}")
 
 
 def copy_button(label, text_to_copy, key):
@@ -3980,7 +3961,7 @@ def daily_sleep_timing_chart(sleep_table, title, chart_key):
         ticktext=[f"{h:02d}:00" for h in range(0, 25, 2)],
     )
     fig.update_yaxes(title_text=None)
-    fig.update_layout(height=max(330, 42 * unique_days + 90), margin=dict(l=8, r=8, t=38, b=8), showlegend=False)
+    fig.update_layout(height=min(900, max(330, 34 * unique_days + 80)), margin=dict(l=8, r=8, t=38, b=8), showlegend=False)
 
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
@@ -3991,24 +3972,15 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
         return
 
     chart_df = df.copy().sort_values("date")
-    chart_df["date_label"] = pd.to_datetime(chart_df["date"]).dt.strftime("%a %d-%m-%y")
+    chart_df["plot_date"] = pd.to_datetime(chart_df["date"], errors="coerce")
     chart_df[value_col] = pd.to_numeric(chart_df[value_col], errors="coerce")
-    chart_df = chart_df.dropna(subset=[value_col])
+    chart_df = chart_df.dropna(subset=["plot_date", value_col])
 
     if chart_df.empty:
         st.info("No data available for this chart.")
         return
 
-    unique_x_labels = chart_df["date_label"].astype(str).tolist()
-
-    if len(unique_x_labels) > 14:
-        tick_step = max(1, (len(unique_x_labels) + 7) // 8)
-        visible_x_labels = unique_x_labels[::tick_step]
-
-        if unique_x_labels[-1] not in visible_x_labels:
-            visible_x_labels.append(unique_x_labels[-1])
-    else:
-        visible_x_labels = unique_x_labels
+    chart_df["date_label"] = chart_df["plot_date"].dt.strftime("%a %d-%m-%y")
 
     metric_colour = css_color(metric_color_key(value_col))
 
@@ -4032,42 +4004,46 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
     if chart_type == "line" and not use_status_col:
         fig = px.line(
             chart_df,
-            x="date_label",
+            x="plot_date",
             y=value_col,
             markers=True,
             title=title,
-            labels={"date_label": "", value_col: ""},
+            labels={"plot_date": "", value_col: ""},
+            hover_data={"date_label": True, "plot_date": False},
         )
-        fig.update_traces(line_color=metric_colour, marker_color=metric_colour, line_width=3, marker_size=8)
+        fig.update_traces(line_color=metric_colour, marker_color=metric_colour, line_width=3, marker_size=7)
     else:
         if use_status_col:
             fig = px.bar(
                 chart_df,
-                x="date_label",
+                x="plot_date",
                 y=value_col,
                 color="status",
                 color_discrete_map=color_map,
                 title=title,
-                labels={"date_label": "", value_col: ""},
+                labels={"plot_date": "", value_col: ""},
+                hover_data={"date_label": True, "plot_date": False},
             )
             fig.update_layout(showlegend=False)
         elif chart_type == "line":
             fig = px.line(
                 chart_df,
-                x="date_label",
+                x="plot_date",
                 y=value_col,
                 markers=True,
                 title=title,
-                labels={"date_label": "", value_col: ""},
+                labels={"plot_date": "", value_col: ""},
+                hover_data={"date_label": True, "plot_date": False},
             )
-            fig.update_traces(line_color=metric_colour, marker_color=metric_colour, line_width=3, marker_size=8)
+            fig.update_traces(line_color=metric_colour, marker_color=metric_colour, line_width=3, marker_size=7)
         else:
             fig = px.bar(
                 chart_df,
-                x="date_label",
+                x="plot_date",
                 y=value_col,
                 title=title,
-                labels={"date_label": "", value_col: ""},
+                labels={"plot_date": "", value_col: ""},
+                hover_data={"date_label": True, "plot_date": False},
             )
             fig.update_traces(marker_color=metric_colour)
 
@@ -4080,17 +4056,45 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
             annotation_position="top left",
         )
 
+    day_count = chart_df["plot_date"].dt.date.nunique()
+
+    if day_count > 60:
+        max_ticks = 5
+        tick_format = "%d %b"
+    elif day_count > 30:
+        max_ticks = 5
+        tick_format = "%d %b"
+    elif day_count > 14:
+        max_ticks = 6
+        tick_format = "%d %b"
+    else:
+        max_ticks = 7
+        tick_format = "%a %d-%m"
+
+    unique_dates = list(chart_df["plot_date"].drop_duplicates())
+
+    if len(unique_dates) > max_ticks:
+        step = max(1, round(len(unique_dates) / max_ticks))
+        tick_dates = unique_dates[::step]
+
+        if unique_dates[-1] not in tick_dates:
+            tick_dates.append(unique_dates[-1])
+    else:
+        tick_dates = unique_dates
+
+    tick_text = [pd.to_datetime(d).strftime(tick_format) for d in tick_dates]
+
     fig.update_xaxes(
         title_text=None,
         tickmode="array",
-        tickvals=visible_x_labels,
-        ticktext=visible_x_labels,
+        tickvals=tick_dates,
+        ticktext=tick_text,
         tickangle=0,
     )
     fig.update_yaxes(title_text=None)
-    fig.update_layout(height=330, margin=dict(l=8, r=8, t=42, b=8), bargap=0.20)
-    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
+    fig.update_layout(height=330, margin=dict(l=8, r=8, t=42, b=18), bargap=0.20)
 
+    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
 
 # ============================================================
