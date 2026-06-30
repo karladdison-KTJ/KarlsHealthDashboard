@@ -499,10 +499,10 @@ apply_mobile_compact_css()
 
 APP_TITLE = "Karl's Health Dashboard"
 APP_LOGIN_ID = "K Health"
-APP_VERSION = "v2.2.5"
-APP_REVIEW_DATE = "30-06-26 01:55"
+APP_VERSION = "v2.2.6"
+APP_REVIEW_DATE = "30-06-26 10:05"
 APP_REVIEW_DISPLAY = "Reviewed Tue 30 Jun 2026"
-APP_BUILD = "20260630-0155"
+APP_BUILD = "20260630-1005"
 APP_DESCRIPTION = "Bringing together Withings and MyNetDiary Pro"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -3689,8 +3689,10 @@ def render_kpi_grid(cards):
     """
     Compact HTML KPI cards.
 
-    This avoids Streamlit columns stacking into one long column on iPhone, so the
-    basic information stays visible with much less scrolling.
+    Keep this HTML deliberately left-aligned / single-line.
+    Streamlit renders st.markdown through Markdown first; heavily indented
+    HTML can be treated as a code block, which is why the app showed raw
+    <div> text inside the Today cards.
     """
     if not cards:
         return
@@ -3706,33 +3708,30 @@ def render_kpi_grid(cards):
         show_progress = bool(card.get("show_progress", True))
         colour = html_escape(str(card.get("color", css_color("text"))))
 
-        progress_html = ""
         if show_progress:
-            progress_html = f"""
-                <div class='kh-progress-line'>
-                    <div class='kh-progress-fill' style='width:{pct}%; background:{colour};'></div>
-                </div>
-                <div class='kh-quick-footer'>{pct}%{f' · {footer}' if footer else ''}</div>
-            """
+            footer_text = f"{pct}%" + (f" · {footer}" if footer else "")
+            progress_html = (
+                "<div class='kh-progress-line'>"
+                f"<div class='kh-progress-fill' style='width:{pct}%; background:{colour};'></div>"
+                "</div>"
+                f"<div class='kh-quick-footer'>{footer_text}</div>"
+            )
         elif footer:
             progress_html = f"<div class='kh-quick-footer'>{footer}</div>"
+        else:
+            progress_html = ""
 
         card_html.append(
-            f"""
-            <div class='kh-quick-card' style='border-left-color:{colour};'>
-                <div class='kh-quick-title'>{title}</div>
-                <div class='kh-quick-value'>{value}</div>
-                <div class='kh-quick-sub'>{sub}</div>
-                {progress_html}
-            </div>
-            """
+            "<div class='kh-quick-card' style='border-left-color:" + colour + ";'>"
+            f"<div class='kh-quick-title'>{title}</div>"
+            f"<div class='kh-quick-value'>{value}</div>"
+            f"<div class='kh-quick-sub'>{sub}</div>"
+            f"{progress_html}"
+            "</div>"
         )
 
-    st.markdown(
-        "<div class='kh-quick-grid'>" + "".join(card_html) + "</div>",
-        unsafe_allow_html=True,
-    )
-
+    html = "<div class='kh-quick-grid'>" + "".join(card_html) + "</div>"
+    st.markdown(html, unsafe_allow_html=True)
 
 def calculate_health_score(goals, sleep_hours, steps, calories, protein, latest_weight_kg, weight_range):
     score = 0
