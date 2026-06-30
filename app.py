@@ -33,186 +33,447 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 def apply_mobile_compact_css():
+    """Karl's Health Dashboard visual design system.
+
+    One clean CSS block is used on purpose. The previous app had several
+    competing CSS overrides, which made the colours and sidebar behaviour
+    unpredictable between desktop and iPhone.
+    """
     st.markdown("""
     <style>
-    .block-container {
-        padding-top: 1.0rem !important;
-        padding-bottom: 0.8rem !important;
-        padding-left: 0.45rem !important;
-        padding-right: 0.45rem !important;
-        max-width: 100% !important;
-    }
+        :root {
+            --kh-bg: #F3F6F4;
+            --kh-bg-soft: #EAF2EE;
+            --kh-card: #FFFFFF;
+            --kh-card-header: #F1F4F3;
+            --kh-border: #D6E0DB;
+            --kh-border-strong: #B9C9C1;
+            --kh-text: #263238;
+            --kh-muted: #65727D;
+            --kh-accent: #1F5E4B;
+            --kh-accent-dark: #164638;
+            --kh-accent-soft: #DDEDE6;
+            --kh-green: #2F7D5C;
+            --kh-red: #C2514A;
+            --kh-amber: #B87918;
+            --kh-blue: #315E7D;
+            --kh-purple: #7467B7;
+            --kh-shadow: 0 4px 14px rgba(20, 48, 38, 0.07);
+        }
 
-    h1 { font-size: 1.45rem !important; margin: 0.2rem 0 0.35rem 0 !important; }
-    h2 { font-size: 1.15rem !important; margin: 0.45rem 0 0.25rem 0 !important; }
-    h3 { font-size: 1rem !important; margin: 0.35rem 0 0.2rem 0 !important; }
+        html, body, .stApp, [data-testid="stAppViewContainer"] {
+            background: linear-gradient(180deg, var(--kh-bg-soft) 0%, var(--kh-bg) 34%, #FFFFFF 100%) !important;
+            color: var(--kh-text) !important;
+        }
 
-    div[data-testid="stMetric"] {
-        padding: 0.35rem 0.45rem !important;
-        border-radius: 0.7rem !important;
-    }
+        /* Keep Streamlit's built-in collapsed-sidebar button available. */
+        [data-testid="stSidebar"], [data-testid="stSidebar"] > div {
+            background: var(--kh-card) !important;
+            border-right: 1px solid var(--kh-border) !important;
+        }
 
-    div[data-testid="stMetric"] label {
-        font-size: 0.72rem !important;
-    }
+        [data-testid="stSidebarContent"] {
+            padding: 0.65rem 0.65rem 1rem 0.65rem !important;
+        }
 
-    div[data-testid="stMetricValue"] {
-        font-size: 1.15rem !important;
-    }
+        #MainMenu, footer, [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"] {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+        }
 
-    div[data-testid="stVerticalBlock"] {
-        gap: 0.35rem !important;
-    }
+        header[data-testid="stHeader"], [data-testid="stHeader"] {
+            background: rgba(243, 246, 244, 0.92) !important;
+            backdrop-filter: blur(10px);
+        }
 
-    div[data-testid="column"] {
-        padding: 0.15rem !important;
-    }
+        .block-container {
+            max-width: 100% !important;
+            padding-top: 0.35rem !important;
+            padding-bottom: 0.85rem !important;
+            padding-left: 0.55rem !important;
+            padding-right: 0.55rem !important;
+        }
 
-    .stButton button {
-        padding: 0.25rem 0.45rem !important;
-        font-size: 0.8rem !important;
-        min-height: 2rem !important;
-    }
+        h1, h2, h3 {
+            color: var(--kh-text) !important;
+            letter-spacing: -0.015rem;
+        }
 
-    .stTabs [data-baseweb="tab"] {
-        padding: 0.35rem 0.45rem !important;
-        font-size: 0.8rem !important;
-    }
+        h1 { font-size: clamp(1.28rem, 4.8vw, 1.9rem) !important; line-height: 1.05 !important; margin: 0.15rem 0 0.25rem 0 !important; }
+        h2 { font-size: clamp(1.02rem, 3.8vw, 1.22rem) !important; line-height: 1.1 !important; margin: 0.42rem 0 0.22rem 0 !important; }
+        h3 { font-size: clamp(0.94rem, 3.4vw, 1.08rem) !important; line-height: 1.1 !important; margin: 0.35rem 0 0.18rem 0 !important; }
 
-    div[data-testid="stExpander"] {
-        margin: 0.25rem 0 !important;
-    }
+        p, li, label, span, .stMarkdown p, .stCaptionContainer {
+            font-size: 0.88rem !important;
+        }
 
-    div[data-testid="stDataFrame"] {
-        font-size: 0.78rem !important;
-    }
+        hr {
+            margin: 0.38rem 0 !important;
+            border-color: var(--kh-border) !important;
+        }
 
-    hr {
-        margin: 0.35rem 0 !important;
-    }
+        div[data-testid="stVerticalBlock"] { gap: 0.34rem !important; }
+        div[data-testid="stHorizontalBlock"] { gap: 0.35rem !important; }
+        div[data-testid="column"] { padding-left: 0.12rem !important; padding-right: 0.12rem !important; }
+        .element-container { margin-bottom: 0.12rem !important; }
 
-    .element-container {
-        margin-bottom: 0.18rem !important;
-    }
+        /* Buttons: small, clear, iPhone friendly. */
+        .stButton > button, .stLinkButton > a {
+            min-height: 1.9rem !important;
+            padding: 0.24rem 0.58rem !important;
+            border-radius: 999px !important;
+            border: 1px solid var(--kh-border-strong) !important;
+            background: #FFFFFF !important;
+            color: var(--kh-accent) !important;
+            font-size: 0.78rem !important;
+            font-weight: 800 !important;
+        }
 
-    .compact-goal-card {
-        border: 1px solid rgba(128,128,128,0.20);
-        border-radius: 0.65rem;
-        padding: 0.28rem 0.45rem 0.05rem 0.45rem;
-        margin: 0.05rem 0 0.05rem 0;
-        background: #FFFFFF;
-    }
+        .stButton > button:hover, .stLinkButton > a:hover {
+            border-color: var(--kh-accent) !important;
+            background: var(--kh-accent-soft) !important;
+            color: var(--kh-accent-dark) !important;
+        }
 
-    .compact-goal-top {
-        font-size: 0.86rem;
-        line-height: 1.2;
-    }
+        div[data-testid="stTabs"] button {
+            padding: 0.32rem 0.42rem !important;
+            font-size: 0.78rem !important;
+            font-weight: 800 !important;
+        }
 
-    .compact-goal-bottom {
-        margin-top: -0.55rem;
-        margin-bottom: 0.18rem;
-        font-size: 0.76rem;
-        line-height: 1.1;
-    }
+        div[data-testid="stTabs"] button[aria-selected="true"] {
+            color: var(--kh-accent) !important;
+        }
 
-    .stProgress > div > div > div > div {
-        height: 0.38rem !important;
-    }
+        /* Native metric/card components. */
+        div[data-testid="stMetric"] {
+            background: var(--kh-card) !important;
+            border: 1px solid var(--kh-border) !important;
+            border-radius: 12px !important;
+            box-shadow: var(--kh-shadow) !important;
+            padding: 0.42rem 0.52rem !important;
+            min-height: 62px !important;
+        }
 
+        div[data-testid="stMetric"] label {
+            color: var(--kh-muted) !important;
+            font-size: 0.72rem !important;
+            font-weight: 750 !important;
+        }
 
-    div[data-testid="stForm"] {
-        margin-top: 0.25rem !important;
-    }
+        div[data-testid="stMetricValue"] {
+            color: var(--kh-text) !important;
+            font-size: 1.04rem !important;
+            line-height: 1.08 !important;
+            font-weight: 850 !important;
+        }
 
-    .stAlert {
-        margin-top: 0.15rem !important;
-        margin-bottom: 0.25rem !important;
-    }
-    
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            background: var(--kh-card) !important;
+            border: 1px solid var(--kh-border) !important;
+            border-radius: 13px !important;
+            box-shadow: var(--kh-shadow) !important;
+            overflow: hidden !important;
+        }
 
-    /* White iPhone-style cards with soft grey headers, matching Streamlit expanders. */
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: #FFFFFF !important;
-        border: 1px solid rgba(101, 112, 130, 0.24) !important;
-        border-radius: 14px !important;
-        box-shadow: 0 6px 18px rgba(22, 83, 64, 0.07) !important;
-        overflow: hidden !important;
-    }
+        div[data-testid="stVerticalBlockBorderWrapper"] > div,
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlock"],
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"],
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"],
+        div[data-testid="stVerticalBlockBorderWrapper"] .element-container {
+            background: var(--kh-card) !important;
+        }
 
-    div[data-testid="stVerticalBlockBorderWrapper"] > div,
-    div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlock"] {
-        background: #FFFFFF !important;
-    }
+        .kh-card,
+        .kh-chart-frame,
+        .compact-goal-card,
+        div[data-testid="stPlotlyChart"],
+        div[data-testid="stDataFrame"],
+        div[data-testid="stForm"],
+        div[data-testid="stExpander"] details {
+            background: var(--kh-card) !important;
+        }
 
-    .kh-card,
-    .compact-goal-card,
-    div[data-testid="stPlotlyChart"],
-    div[data-testid="stDataFrame"],
-    div[data-testid="stForm"],
-    div[data-testid="stExpander"] details {
-        background: #FFFFFF !important;
-    }
+        .kh-section-header {
+            margin: -0.65rem -0.75rem 0.48rem -0.75rem;
+            padding: 0.46rem 0.65rem;
+            background: var(--kh-card-header) !important;
+            border-bottom: 1px solid var(--kh-border) !important;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.55rem;
+            border-top-left-radius: 13px;
+            border-top-right-radius: 13px;
+        }
 
-    .kh-section-header {
-        margin: -0.65rem -0.75rem 0.55rem -0.75rem;
-        padding: 0.52rem 0.72rem;
-        background: #F4F6F8;
-        border-bottom: 1px solid rgba(101, 112, 130, 0.18);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.65rem;
-        border-top-left-radius: 14px;
-        border-top-right-radius: 14px;
-    }
+        .kh-section-header-title {
+            font-size: 0.84rem;
+            line-height: 1.12;
+            font-weight: 850;
+            color: var(--kh-text);
+        }
 
-    .kh-section-header-title {
-        font-size: 0.88rem;
-        line-height: 1.15;
-        font-weight: 850;
-        color: #303548;
-    }
+        .kh-section-header-right {
+            font-size: 0.74rem;
+            font-weight: 800;
+            color: var(--kh-muted);
+            white-space: nowrap;
+        }
 
-    .kh-section-header-right {
-        font-size: 0.78rem;
-        font-weight: 750;
-        color: rgba(48, 53, 72, 0.66);
-        white-space: nowrap;
-    }
+        .kh-app-header {
+            display: flex;
+            align-items: center;
+            gap: 0.62rem;
+            margin: 0 0 0.15rem 0;
+            padding: 0.04rem 0.05rem 0.08rem 0.05rem;
+        }
 
-    .kh-compact-food-row {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 0.75rem;
-        align-items: baseline;
-        padding: 0.38rem 0;
-        border-bottom: 1px solid rgba(101, 112, 130, 0.14);
-    }
+        .kh-header-icon-wrap,
+        .kh-header-logo,
+        .kh-header-fallback {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            flex: 0 0 auto;
+        }
 
-    .kh-compact-food-row:last-child {
-        border-bottom: none;
-    }
+        .kh-header-logo {
+            object-fit: cover;
+            box-shadow: 0 5px 16px rgba(22, 70, 56, 0.14);
+        }
 
-    .kh-compact-food-name {
-        font-size: 0.88rem;
-        font-weight: 720;
-        color: #303548;
-    }
+        .kh-header-fallback {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.72rem;
+            background: linear-gradient(135deg, var(--kh-accent-soft), #FFFFFF);
+            box-shadow: 0 5px 16px rgba(22, 70, 56, 0.14);
+        }
 
-    .kh-compact-food-cal {
-        font-size: 0.82rem;
-        font-weight: 780;
-        color: rgba(48, 53, 72, 0.72);
-        white-space: nowrap;
-    }
+        .kh-header-text { min-width: 0; flex: 1 1 auto; }
+        .kh-header-title-row { display: flex; align-items: center; gap: 0.42rem; flex-wrap: wrap; line-height: 1.05; }
+        .kh-header-title { font-size: clamp(1.14rem, 5.2vw, 1.72rem) !important; font-weight: 900; color: var(--kh-text); letter-spacing: -0.03rem; }
 
-    .js-plotly-plot,
-    .plotly,
-    .plot-container,
-    .svg-container {
-        background: #FFFFFF !important;
-    }
+        .kh-version-pill {
+            background: var(--kh-accent);
+            color: white;
+            border-radius: 999px;
+            padding: 0.11rem 0.38rem;
+            font-size: 0.66rem !important;
+            font-weight: 900;
+            white-space: nowrap;
+        }
 
+        .kh-header-subtitle {
+            margin-top: 0.14rem;
+            color: var(--kh-muted);
+            font-size: 0.72rem !important;
+            line-height: 1.22;
+        }
+
+        /* Compact KPI grid: deliberately stays two columns on phones. */
+        .kh-quick-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.34rem;
+            margin: 0.22rem 0 0.32rem 0;
+        }
+
+        @media (min-width: 980px) {
+            .kh-quick-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        }
+
+        .kh-quick-card {
+            background: #FFFFFF;
+            border: 1px solid var(--kh-border);
+            border-left: 4px solid var(--kh-accent);
+            border-radius: 12px;
+            box-shadow: var(--kh-shadow);
+            padding: 0.42rem 0.48rem 0.38rem 0.48rem;
+            min-height: 74px;
+        }
+
+        .kh-quick-title {
+            font-size: 0.72rem !important;
+            color: var(--kh-muted);
+            font-weight: 850;
+            line-height: 1.08;
+            margin-bottom: 0.13rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .kh-quick-value {
+            font-size: clamp(0.95rem, 4.8vw, 1.18rem) !important;
+            color: var(--kh-text);
+            font-weight: 900;
+            line-height: 1.02;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .kh-quick-sub {
+            margin-top: 0.12rem;
+            font-size: 0.66rem !important;
+            color: var(--kh-muted);
+            line-height: 1.08;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .kh-progress-line {
+            height: 4px;
+            border-radius: 999px;
+            background: #E9EEF0;
+            overflow: hidden;
+            margin: 0.26rem 0 0.16rem 0;
+        }
+
+        .kh-progress-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: var(--kh-accent);
+        }
+
+        .kh-quick-footer {
+            font-size: 0.64rem !important;
+            color: var(--kh-muted);
+            line-height: 1.05;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .kh-health-compact {
+            background: #FFFFFF;
+            border: 1px solid var(--kh-border);
+            border-radius: 13px;
+            box-shadow: var(--kh-shadow);
+            padding: 0.48rem 0.58rem;
+            margin: 0.2rem 0 0.28rem 0;
+        }
+
+        .kh-health-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.55rem;
+        }
+
+        .kh-health-title {
+            font-size: 0.78rem !important;
+            color: var(--kh-muted);
+            font-weight: 850;
+            line-height: 1.1;
+        }
+
+        .kh-health-score-number {
+            font-size: 1.28rem !important;
+            font-weight: 950;
+            line-height: 1;
+            color: var(--kh-accent);
+        }
+
+        .kh-health-message {
+            margin-top: 0.18rem;
+            font-size: 0.72rem !important;
+            color: var(--kh-muted);
+            line-height: 1.15;
+        }
+
+        .kh-pill {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 0.12rem 0.34rem;
+            font-size: 0.64rem !important;
+            font-weight: 850;
+            margin: 0.14rem 0.14rem 0 0;
+            background: var(--kh-accent-soft);
+            color: var(--kh-accent);
+        }
+
+        .kh-muted { color: var(--kh-muted); opacity: 0.92; }
+
+        .kh-compact-food-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 0.65rem;
+            align-items: baseline;
+            padding: 0.32rem 0;
+            border-bottom: 1px solid rgba(101, 112, 130, 0.14);
+        }
+
+        .kh-compact-food-row:last-child { border-bottom: none; }
+        .kh-compact-food-name { font-size: 0.82rem !important; font-weight: 760; color: var(--kh-text); line-height: 1.14; }
+        .kh-compact-food-cal { font-size: 0.76rem !important; font-weight: 820; color: var(--kh-muted); white-space: nowrap; }
+
+        div[data-testid="stDataFrame"] {
+            border: 1px solid var(--kh-border) !important;
+            border-radius: 12px !important;
+            overflow: hidden !important;
+            font-size: 0.78rem !important;
+        }
+
+        div[data-testid="stDataFrame"] thead tr,
+        div[data-testid="stDataFrame"] thead th {
+            background: var(--kh-card-header) !important;
+        }
+
+        div[data-testid="stDataFrame"] tbody tr,
+        div[data-testid="stDataFrame"] tbody td {
+            background: #FFFFFF !important;
+        }
+
+        div[data-testid="stPlotlyChart"],
+        .js-plotly-plot, .plotly, .plot-container, .svg-container {
+            background: #FFFFFF !important;
+        }
+
+        .main-svg, .bglayer rect.bg { fill: #FFFFFF !important; }
+
+        div[data-testid="stAlert"] {
+            border-radius: 11px !important;
+            margin: 0.12rem 0 0.22rem 0 !important;
+        }
+
+        div[data-testid="stExpander"] {
+            margin: 0.2rem 0 !important;
+        }
+
+        div[data-testid="stExpander"] details {
+            border: 1px solid var(--kh-border) !important;
+            border-radius: 12px !important;
+            box-shadow: var(--kh-shadow) !important;
+        }
+
+        div[data-testid="stProgress"] > div {
+            height: 4px !important;
+            background: #E9EEF0 !important;
+        }
+
+        @media (max-width: 700px) {
+            .block-container {
+                padding-left: 0.38rem !important;
+                padding-right: 0.38rem !important;
+                padding-top: 0.28rem !important;
+            }
+
+            .kh-app-header { gap: 0.5rem; }
+            .kh-header-icon-wrap, .kh-header-logo, .kh-header-fallback { width: 42px; height: 42px; border-radius: 12px; }
+            .kh-header-subtitle { font-size: 0.66rem !important; }
+            .kh-version-pill { font-size: 0.61rem !important; }
+            .kh-quick-card { padding: 0.36rem 0.42rem 0.34rem 0.42rem; min-height: 68px; }
+            .kh-quick-title { font-size: 0.68rem !important; }
+            .kh-quick-value { font-size: 0.98rem !important; }
+            .kh-quick-sub, .kh-quick-footer { font-size: 0.61rem !important; }
+        }
     </style>
     """, unsafe_allow_html=True)
 
@@ -226,7 +487,7 @@ st.set_page_config(
     page_title="Karl's Health Dashboard",
     page_icon="🩺",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 apply_mobile_compact_css()
@@ -661,772 +922,6 @@ def check_dashboard_login():
 
 
 check_dashboard_login()
-
-# ============================================================
-# Compact mobile-friendly styling
-# ============================================================
-
-st.markdown(
-    """
-    <style>
-        .block-container {
-            padding-top: 0.35rem !important;
-            padding-bottom: 0.75rem !important;
-            padding-left: 0.45rem !important;
-            padding-right: 0.45rem !important;
-        }
-
-        h1 {
-            font-size: clamp(1.35rem, 5.5vw, 2rem) !important;
-            line-height: 1.04 !important;
-            margin-bottom: 0.35rem !important;
-        }
-
-        h2, h3 {
-            line-height: 1.08 !important;
-            margin-top: 0.65rem !important;
-            margin-bottom: 0.45rem !important;
-        }
-
-        h2 { font-size: clamp(1.05rem, 4.5vw, 1.35rem) !important; }
-        h3 { font-size: clamp(0.95rem, 3.8vw, 1.15rem) !important; }
-
-        div[data-testid="stMetric"] {
-            padding: 0.15rem 0 !important;
-        }
-
-        div[data-testid="stMetric"] label {
-            font-size: 0.82rem !important;
-        }
-
-        div[data-testid="stMetric"] [data-testid="stMetricValue"] {
-            font-size: clamp(1.05rem, 4.8vw, 1.45rem) !important;
-            line-height: 1.05 !important;
-        }
-
-        div[data-testid="stTabs"] button {
-            padding: 0.45rem 0.55rem !important;
-            font-size: 0.92rem !important;
-        }
-
-        div[data-testid="stHorizontalBlock"] {
-            gap: 0.35rem !important;
-        }
-
-        hr {
-            margin-top: 0.35rem !important;
-            margin-bottom: 0.35rem !important;
-        }
-
-        div[data-testid="stDataFrame"] {
-            font-size: 0.82rem !important;
-        }
-
-        /* Hide Streamlit heading anchor/link icons to keep the iPhone view cleaner. */
-        a[href^="#"] {
-            display: none !important;
-        }
-
-
-        /* Tighten Streamlit Cloud top chrome/margins on mobile. */
-        #MainMenu, footer, [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"] {
-            display: none !important;
-            visibility: hidden !important;
-            height: 0 !important;
-        }
-
-        header[data-testid="stHeader"], [data-testid="stHeader"] {
-            height: 0 !important;
-            min-height: 0 !important;
-            display: none !important;
-            visibility: hidden !important;
-        }
-
-        section.main > div {
-            padding-top: 0 !important;
-        }
-
-
-
-        .kh-card {
-            border: 1px solid rgba(128,128,128,0.18);
-            border-radius: 18px;
-            padding: 0.5rem;
-            background: #FFFFFF;
-            box-shadow: 0 4px 16px rgba(20, 40, 80, 0.04);
-            margin-bottom: 0.35rem;
-        }
-
-        .kh-health-score {
-            border: 1px solid rgba(35, 166, 96, 0.24);
-            background: linear-gradient(135deg, rgba(35,166,96,0.10), rgba(47,108,196,0.05));
-        }
-
-        .kh-kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 0.35rem;
-            margin: 0.35rem 0 0.45rem 0;
-        }
-
-        .kh-kpi {
-            border-radius: 18px;
-            padding: 0.45rem;
-            border: 1px solid rgba(128,128,128,0.18);
-            background: #FFFFFF;
-            min-height: 72px;
-        }
-
-        .kh-kpi-title {
-            font-size: 0.95rem;
-            font-weight: 750;
-            margin-bottom: 0.2rem;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-        }
-
-        .kh-kpi-value {
-            font-size: clamp(1.05rem, 5vw, 1.45rem);
-            line-height: 1.0;
-            font-weight: 800;
-            margin-bottom: 0.18rem;
-        }
-
-        .kh-kpi-sub {
-            font-size: 0.82rem;
-            opacity: 0.78;
-            margin-bottom: 0.18rem;
-        }
-
-        .kh-progress {
-            height: 6px;
-            border-radius: 999px;
-            background: rgba(128,128,128,0.18);
-            overflow: hidden;
-            margin: 0.2rem 0;
-        }
-
-        .kh-progress-fill {
-            height: 100%;
-            border-radius: 999px;
-        }
-
-        .kh-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            border-radius: 999px;
-            padding: 0.28rem 0.55rem;
-            font-size: 0.8rem;
-            font-weight: 700;
-            margin: 0.2rem 0.25rem 0.2rem 0;
-            background: rgba(128,128,128,0.10);
-        }
-
-        .kh-food-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 0.8rem;
-            padding: 0.35rem 0;
-            border-bottom: 1px solid rgba(128,128,128,0.14);
-        }
-
-        .kh-food-row:last-child {
-            border-bottom: 0;
-        }
-
-        .kh-muted {
-            opacity: 0.72;
-        }
-
-        @media (max-width: 900px) {
-            .kh-kpi-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-        }
-
-        @media (max-width: 520px) {
-            .kh-kpi-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .kh-kpi {
-                min-height: 64px;
-            }
-        }
-
-        @media (max-width: 700px) {
-            .block-container {
-                padding-left: 0.45rem !important;
-                padding-right: 0.45rem !important;
-            }
-
-            h1 {
-                font-size: 1.35rem !important;
-            }
-
-            .stMarkdown p, .stCaptionContainer {
-                font-size: 0.9rem !important;
-            }
-        }
-    
-        html, body, [data-testid="stAppViewContainer"], .stApp {
-            background: linear-gradient(180deg, #CBE7D2 0%, #DFF2E4 46%, #F6FCF8 100%) !important;
-        }
-
-        [data-testid="stHeader"] {
-            background: rgba(203, 231, 210, 0.92) !important;
-            backdrop-filter: blur(10px);
-        }
-
-        .kh-app-header {
-            display: flex;
-            align-items: center;
-            gap: 0.72rem;
-            margin: 0 0 0.22rem 0;
-            padding: 0.1rem 0.1rem 0.08rem 0.1rem;
-        }
-
-        .kh-header-icon-wrap {
-            flex: 0 0 auto;
-            width: 58px;
-            height: 58px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .kh-header-logo {
-            width: 58px;
-            height: 58px;
-            object-fit: cover;
-            border-radius: 17px;
-            box-shadow: 0 6px 18px rgba(22, 83, 64, 0.16);
-        }
-
-        .kh-header-fallback {
-            width: 58px;
-            height: 58px;
-            border-radius: 17px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            background: linear-gradient(135deg, #B8E7C5, #D2EBDC);
-            box-shadow: 0 6px 18px rgba(22, 83, 64, 0.16);
-        }
-
-        .kh-header-text {
-            min-width: 0;
-            flex: 1 1 auto;
-        }
-
-        .kh-header-title-row {
-            display: flex;
-            align-items: center;
-            gap: 0.45rem;
-            flex-wrap: wrap;
-            line-height: 1.05;
-        }
-
-        .kh-header-title {
-            font-size: clamp(1.28rem, 5.6vw, 2rem);
-            font-weight: 900;
-            color: #303548;
-            letter-spacing: -0.03rem;
-        }
-
-        .kh-version-pill {
-            background: linear-gradient(135deg, #2F9C55, #2F8B74);
-            color: white;
-            border-radius: 999px;
-            padding: 0.13rem 0.43rem;
-            font-size: 0.72rem;
-            font-weight: 900;
-            white-space: nowrap;
-            box-shadow: 0 4px 12px rgba(47, 108, 196, 0.18);
-        }
-
-        .kh-header-subtitle {
-            margin-top: 0.18rem;
-            color: rgba(48, 53, 72, 0.72);
-            font-size: 0.78rem;
-            line-height: 1.28;
-        }
-
-        .kh-chart-frame {
-            border: 1px solid rgba(47, 132, 86, 0.30);
-            border-radius: 16px;
-            padding: 0.48rem 0.52rem 0.35rem 0.52rem;
-            margin: 0.25rem 0 0.45rem 0;
-            background: #FFFFFF;
-            box-shadow: 0 8px 26px rgba(22, 83, 64, 0.09);
-        }
-
-        .kh-chart-frame .js-plotly-plot,
-        .kh-chart-frame [data-testid="stPlotlyChart"] {
-            border-radius: 12px;
-            overflow: hidden;
-        }
-
-        .compact-goal-card strong,
-        .compact-goal-bottom strong {
-            font-weight: 850;
-        }
-
-        @media (max-width: 700px) {
-            .kh-app-header {
-                gap: 0.62rem;
-                margin-top: 0;
-            }
-
-            .kh-header-icon-wrap,
-            .kh-header-logo,
-            .kh-header-fallback {
-                width: 54px;
-                height: 54px;
-                border-radius: 15px;
-            }
-
-            .kh-header-title {
-                font-size: clamp(1.2rem, 6.1vw, 1.75rem);
-            }
-
-            .kh-header-subtitle {
-                font-size: 0.74rem;
-            }
-        }
-
-        div[data-testid="stVerticalBlockBorderWrapper"] {
-            border-color: rgba(47, 132, 86, 0.30) !important;
-            border-radius: 16px !important;
-            background: #FFFFFF !important;
-            box-shadow: 0 8px 26px rgba(22, 83, 64, 0.09);
-        }
-
-        .kh-chart-frame,
-        .kh-card,
-        div[data-testid="stPlotlyChart"],
-        div[data-testid="stDataFrame"],
-        div[data-testid="stForm"],
-        div[data-testid="stExpander"] details {
-            background: #FFFFFF !important;
-        }
-
-        .js-plotly-plot,
-        .plotly,
-        .plot-container,
-        .svg-container {
-            background: #FFFFFF !important;
-        }
-
-
-    /* White iPhone-style cards with soft grey headers, matching Streamlit expanders. */
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: #FFFFFF !important;
-        border: 1px solid rgba(101, 112, 130, 0.24) !important;
-        border-radius: 14px !important;
-        box-shadow: 0 6px 18px rgba(22, 83, 64, 0.07) !important;
-        overflow: hidden !important;
-    }
-
-    div[data-testid="stVerticalBlockBorderWrapper"] > div,
-    div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlock"] {
-        background: #FFFFFF !important;
-    }
-
-    .kh-card,
-    .compact-goal-card,
-    div[data-testid="stPlotlyChart"],
-    div[data-testid="stDataFrame"],
-    div[data-testid="stForm"],
-    div[data-testid="stExpander"] details {
-        background: #FFFFFF !important;
-    }
-
-    .kh-section-header {
-        margin: -0.65rem -0.75rem 0.55rem -0.75rem;
-        padding: 0.52rem 0.72rem;
-        background: #F4F6F8;
-        border-bottom: 1px solid rgba(101, 112, 130, 0.18);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.65rem;
-        border-top-left-radius: 14px;
-        border-top-right-radius: 14px;
-    }
-
-    .kh-section-header-title {
-        font-size: 0.88rem;
-        line-height: 1.15;
-        font-weight: 850;
-        color: #303548;
-    }
-
-    .kh-section-header-right {
-        font-size: 0.78rem;
-        font-weight: 750;
-        color: rgba(48, 53, 72, 0.66);
-        white-space: nowrap;
-    }
-
-    .kh-compact-food-row {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 0.75rem;
-        align-items: baseline;
-        padding: 0.38rem 0;
-        border-bottom: 1px solid rgba(101, 112, 130, 0.14);
-    }
-
-    .kh-compact-food-row:last-child {
-        border-bottom: none;
-    }
-
-    .kh-compact-food-name {
-        font-size: 0.88rem;
-        font-weight: 720;
-        color: #303548;
-    }
-
-    .kh-compact-food-cal {
-        font-size: 0.82rem;
-        font-weight: 780;
-        color: rgba(48, 53, 72, 0.72);
-        white-space: nowrap;
-    }
-
-    .js-plotly-plot,
-    .plotly,
-    .plot-container,
-    .svg-container {
-        background: #FFFFFF !important;
-    }
-
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-
-# ============================================================
-# Final visual fixes: keep green only as the page background
-# ============================================================
-
-st.markdown(
-    """
-    <style>
-        /* Keep the green fade as the app background only. */
-        html, body, .stApp, [data-testid="stAppViewContainer"] {
-            background: linear-gradient(180deg, #CBE7D2 0%, #DFF2E4 46%, #F6FCF8 100%) !important;
-        }
-
-        /* Restore the sidebar as the main import/control area. */
-        [data-testid="stSidebar"],
-        [data-testid="stSidebar"] > div {
-            background: #FFFFFF !important;
-        }
-
-        /* All bordered Streamlit cards should be white inside, with grey headers. */
-        div[data-testid="stVerticalBlockBorderWrapper"] {
-            background: #FFFFFF !important;
-            border: 1px solid rgba(101, 112, 130, 0.24) !important;
-            border-radius: 14px !important;
-            box-shadow: 0 6px 18px rgba(22, 83, 64, 0.07) !important;
-            overflow: hidden !important;
-        }
-
-        div[data-testid="stVerticalBlockBorderWrapper"] > div,
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlock"],
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"],
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"],
-        div[data-testid="stVerticalBlockBorderWrapper"] .element-container {
-            background: #FFFFFF !important;
-        }
-
-        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMarkdownContainer"] {
-            background: transparent !important;
-        }
-
-        .kh-card,
-        .kh-chart-frame,
-        .compact-goal-card,
-        div[data-testid="stPlotlyChart"],
-        div[data-testid="stDataFrame"],
-        div[data-testid="stForm"],
-        div[data-testid="stExpander"] details {
-            background: #FFFFFF !important;
-        }
-
-        .kh-section-header {
-            background: #F4F6F8 !important;
-            border-bottom: 1px solid rgba(101, 112, 130, 0.18) !important;
-        }
-
-        /* Make chart canvases themselves white so there is no green inside charts. */
-        .js-plotly-plot,
-        .plotly,
-        .plot-container,
-        .svg-container,
-        .main-svg,
-        .bglayer rect.bg {
-            background: #FFFFFF !important;
-        }
-
-        /* Streamlit info boxes can keep their blue alert colour, but should sit on white cards. */
-        div[data-testid="stAlert"] {
-            border-radius: 10px !important;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-
-# ============================================================
-# Strict visual contract: green canvas, white cards, visible sidebar
-# ============================================================
-
-st.markdown(
-    """
-    <style>
-        /* 1) Green only belongs to the outer page/canvas. */
-        html,
-        body,
-        .stApp,
-        [data-testid="stAppViewContainer"] {
-            background: linear-gradient(180deg, #C5E4CE 0%, #D8EFDF 45%, #F5FCF7 100%) !important;
-        }
-
-        /* 2) Keep the desktop sidebar visible/open and white. Edge/Safari can remember a collapsed state. */
-        [data-testid="stSidebar"],
-        [data-testid="stSidebar"] > div {
-            background: #FFFFFF !important;
-        }
-
-        @media (min-width: 900px) {
-            section[data-testid="stSidebar"] {
-                display: block !important;
-                visibility: visible !important;
-                transform: translateX(0px) !important;
-                opacity: 1 !important;
-                min-width: 18rem !important;
-                width: 18rem !important;
-                max-width: 18rem !important;
-                left: 0 !important;
-            }
-        }
-
-        /* 3) Any framed/bordered Streamlit section must be white inside. */
-        div[data-testid="stVerticalBlockBorderWrapper"],
-        div[data-testid="stVerticalBlockBorderWrapper"] > div,
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlock"],
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"],
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"],
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stElementContainer"],
-        div[data-testid="stVerticalBlockBorderWrapper"] .element-container,
-        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMarkdownContainer"] {
-            background-color: #FFFFFF !important;
-        }
-
-        div[data-testid="stVerticalBlockBorderWrapper"] {
-            border: 1px solid rgba(101, 112, 130, 0.24) !important;
-            border-radius: 14px !important;
-            box-shadow: 0 6px 18px rgba(22, 83, 64, 0.07) !important;
-            overflow: hidden !important;
-        }
-
-        /* 4) Our custom cards and tables are white too. */
-        .kh-card,
-        .kh-chart-frame,
-        .compact-goal-card,
-        .kh-compact-food-row,
-        div[data-testid="stPlotlyChart"],
-        div[data-testid="stDataFrame"],
-        div[data-testid="stDataFrame"] *,
-        div[data-testid="stForm"],
-        div[data-testid="stExpander"] details,
-        div[data-testid="stExpander"] summary,
-        div[data-testid="stExpander"] div[role="button"] {
-            background-color: #FFFFFF !important;
-        }
-
-        /* 5) Card headers are the only grey parts inside cards. */
-        .kh-section-header {
-            background: #F4F6F8 !important;
-            border-bottom: 1px solid rgba(101, 112, 130, 0.18) !important;
-        }
-
-        /* 6) Plotly chart canvas must stay white. */
-        .js-plotly-plot,
-        .plotly,
-        .plot-container,
-        .svg-container,
-        .main-svg,
-        .bglayer rect.bg {
-            background: #FFFFFF !important;
-            fill: #FFFFFF !important;
-        }
-
-        /* 7) Keep progress bars visible after forcing card backgrounds white. */
-        div[data-testid="stProgress"] > div {
-            background-color: #EEF0F4 !important;
-        }
-
-        div[data-testid="stProgress"] > div > div,
-        div[data-testid="stProgress"] > div > div > div,
-        div[data-testid="stProgress"] > div > div > div > div {
-            background-color: #FF4B4B !important;
-        }
-
-        /* 8) Table headers grey, table body white. */
-        div[data-testid="stDataFrame"] thead tr,
-        div[data-testid="stDataFrame"] thead th {
-            background: #F4F6F8 !important;
-        }
-
-        div[data-testid="stDataFrame"] tbody tr,
-        div[data-testid="stDataFrame"] tbody td {
-            background: #FFFFFF !important;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-# ============================================================
-# Final card body override: green canvas only, white framed interiors
-# ============================================================
-
-st.markdown(
-    """
-    <style>
-        /* The green fade is only the outside canvas/gutters. */
-        html,
-        body,
-        .stApp,
-        [data-testid="stAppViewContainer"] {
-            background: linear-gradient(180deg, #C5E4CE 0%, #D8EFDF 45%, #F5FCF7 100%) !important;
-        }
-
-        /* Sidebar is the left import/control panel and should stay visible/white on desktop. */
-        [data-testid="stSidebar"],
-        [data-testid="stSidebar"] > div,
-        [data-testid="stSidebar"] * {
-            background-color: #FFFFFF !important;
-        }
-
-        @media (min-width: 900px) {
-            section[data-testid="stSidebar"] {
-                display: block !important;
-                visibility: visible !important;
-                transform: translateX(0px) !important;
-                opacity: 1 !important;
-                min-width: 18rem !important;
-                width: 18rem !important;
-                max-width: 18rem !important;
-                left: 0 !important;
-            }
-        }
-
-        /* Every framed section/card body must be white, including nested columns and spacing. */
-        div[data-testid="stVerticalBlockBorderWrapper"],
-        div[data-testid="stVerticalBlockBorderWrapper"] > div,
-        div[data-testid="stVerticalBlockBorderWrapper"] div,
-        div[data-testid="stVerticalBlockBorderWrapper"] section,
-        div[data-testid="stVerticalBlockBorderWrapper"] article,
-        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlock"],
-        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stHorizontalBlock"],
-        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="column"],
-        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stElementContainer"],
-        div[data-testid="stVerticalBlockBorderWrapper"] .element-container,
-        div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMarkdownContainer"] {
-            background-color: #FFFFFF !important;
-        }
-
-        div[data-testid="stVerticalBlockBorderWrapper"] {
-            border: 1px solid rgba(101, 112, 130, 0.24) !important;
-            border-radius: 14px !important;
-            box-shadow: 0 6px 18px rgba(22, 83, 64, 0.07) !important;
-            overflow: hidden !important;
-        }
-
-        /* Grey header strip inside each card. */
-        .kh-section-header,
-        .kh-section-header *,
-        div[data-testid="stVerticalBlockBorderWrapper"] .kh-section-header,
-        div[data-testid="stVerticalBlockBorderWrapper"] .kh-section-header * {
-            background-color: #F4F6F8 !important;
-        }
-
-        .kh-section-header {
-            border-bottom: 1px solid rgba(101, 112, 130, 0.18) !important;
-        }
-
-        /* Custom cards, food rows and dataframes are white. */
-        .kh-card,
-        .kh-card *,
-        .kh-chart-frame,
-        .compact-goal-card,
-        .kh-compact-food-row,
-        .kh-compact-food-row *,
-        div[data-testid="stDataFrame"],
-        div[data-testid="stDataFrame"] * {
-            background-color: #FFFFFF !important;
-        }
-
-        /* Dataframe header is soft grey, body is white. */
-        div[data-testid="stDataFrame"] thead tr,
-        div[data-testid="stDataFrame"] thead th {
-            background-color: #F4F6F8 !important;
-        }
-
-        div[data-testid="stDataFrame"] tbody tr,
-        div[data-testid="stDataFrame"] tbody td {
-            background-color: #FFFFFF !important;
-        }
-
-        /* Plotly canvas is white inside the chart card. */
-        div[data-testid="stPlotlyChart"],
-        div[data-testid="stPlotlyChart"] *,
-        .js-plotly-plot,
-        .plotly,
-        .plot-container,
-        .svg-container {
-            background-color: #FFFFFF !important;
-        }
-
-        .main-svg,
-        .bglayer rect.bg {
-            fill: #FFFFFF !important;
-        }
-
-        /* Keep blue info boxes blue, not green. */
-        div[data-testid="stAlert"],
-        div[data-testid="stAlert"] * {
-            background-color: #DFF3FB !important;
-        }
-
-        /* Keep progress bars visible after the white-card override. */
-        div[data-testid="stProgress"] > div {
-            background-color: #EEF0F4 !important;
-        }
-
-        div[data-testid="stProgress"] > div > div,
-        div[data-testid="stProgress"] > div > div > div,
-        div[data-testid="stProgress"] > div > div > div > div {
-            background-color: #FF4B4B !important;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 # ============================================================
 # General helpers
@@ -4068,17 +3563,18 @@ def fmt_water(value):
 
 def css_color(name):
     palette = {
-        "sleep": "#D95B5B",
-        "steps": "#22A65F",
-        "food": "#F28A2E",
-        "calories": "#F28A2E",
-        "protein": "#9072D8",
-        "weight": "#2F6CC4",
-        "good": "#22A65F",
-        "amber": "#DABC57",
-        "bad": "#D95B5B",
-        "muted": "#7B8497",
-        "text": "#303548",
+        "sleep": "#C2514A",
+        "steps": "#2F7D5C",
+        "food": "#B87918",
+        "calories": "#B87918",
+        "protein": "#7467B7",
+        "weight": "#315E7D",
+        "blue": "#315E7D",
+        "good": "#2F7D5C",
+        "amber": "#B87918",
+        "bad": "#C2514A",
+        "muted": "#65727D",
+        "text": "#263238",
     }
     return palette.get(name, palette["text"])
 
@@ -4191,57 +3687,51 @@ def weight_change_friendly(diff_lb):
 
 def render_kpi_grid(cards):
     """
-    Compact mobile KPI cards.
+    Compact HTML KPI cards.
 
-    Layout example:
-    Calories = 397 (goal 1800)
-    [progress line]
-    22% (1,403 remaining)
-
-    This uses the card progress value directly, so calories now display
-    consumed percentage rather than incorrectly showing 100% when under budget.
+    This avoids Streamlit columns stacking into one long column on iPhone, so the
+    basic information stays visible with much less scrolling.
     """
     if not cards:
         return
 
-    columns = st.columns(min(2, len(cards)))
+    card_html = []
 
-    for idx, card in enumerate(cards):
-        with columns[idx % len(columns)]:
-            title = str(card.get("title", ""))
-            value = str(card.get("value", "No data"))
-            sub = str(card.get("sub", ""))
-            footer = str(card.get("footer", ""))
-            pct = max(0, min(100, safe_int(card.get("progress", 0), 0)))
-            show_progress = bool(card.get("show_progress", True))
+    for card in cards:
+        title = html_escape(str(card.get("title", "")))
+        value = html_escape(str(card.get("value", "No data")))
+        sub = html_escape(str(card.get("sub", "")))
+        footer = html_escape(str(card.get("footer", "")))
+        pct = max(0, min(100, safe_int(card.get("progress", 0), 0)))
+        show_progress = bool(card.get("show_progress", True))
+        colour = html_escape(str(card.get("color", css_color("text"))))
 
-            line = f"<strong>{html_escape(title)} = {html_escape(value)}</strong>"
-            if sub:
-                line += f" <span class='kh-muted'>({html_escape(sub)})</span>"
-
-            st.markdown(
-                f"""
-                <div class="compact-goal-card">
-                    <div class="compact-goal-top">{line}</div>
+        progress_html = ""
+        if show_progress:
+            progress_html = f"""
+                <div class='kh-progress-line'>
+                    <div class='kh-progress-fill' style='width:{pct}%; background:{colour};'></div>
                 </div>
-                """,
-                unsafe_allow_html=True,
-            )
+                <div class='kh-quick-footer'>{pct}%{f' · {footer}' if footer else ''}</div>
+            """
+        elif footer:
+            progress_html = f"<div class='kh-quick-footer'>{footer}</div>"
 
-            if show_progress:
-                st.progress(pct)
+        card_html.append(
+            f"""
+            <div class='kh-quick-card' style='border-left-color:{colour};'>
+                <div class='kh-quick-title'>{title}</div>
+                <div class='kh-quick-value'>{value}</div>
+                <div class='kh-quick-sub'>{sub}</div>
+                {progress_html}
+            </div>
+            """
+        )
 
-                bottom = f"<strong>{pct}%</strong>"
-                if footer:
-                    bottom += f" <span class='kh-muted'>({html_escape(footer)})</span>"
-
-                st.markdown(
-                    f"<div class='compact-goal-bottom'>{bottom}</div>",
-                    unsafe_allow_html=True,
-                )
-            elif footer:
-                st.caption(footer)
-
+    st.markdown(
+        "<div class='kh-quick-grid'>" + "".join(card_html) + "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def calculate_health_score(goals, sleep_hours, steps, calories, protein, latest_weight_kg, weight_range):
@@ -4295,39 +3785,28 @@ def render_health_score(score, parts):
         message = "A tougher day. Focus on the next small win."
         colour = css_color("bad")
 
-    circumference = 2 * 3.14159 * 48
-    offset = circumference * (1 - (score / 100))
-
     pills = []
     for name, ok in parts:
         icon = "✓" if ok else "•"
         pill_colour = css_color("good") if ok else css_color("muted")
-        pills.append(f"<span class='kh-pill' style='color:{pill_colour};'>{icon} {html_escape(name)}</span>")
+        pills.append(
+            f"<span class='kh-pill' style='color:{pill_colour}; background:#EEF3F1;'>{icon} {html_escape(name)}</span>"
+        )
 
     st.markdown(
         f"""
-        <div class='kh-card kh-health-score'>
-            <div style='display:flex; align-items:center; gap:1rem; flex-wrap:wrap;'>
-                <div style='width:116px; height:116px; position:relative; flex:0 0 auto;'>
-                    <svg width='116' height='116' viewBox='0 0 116 116'>
-                        <circle cx='58' cy='58' r='48' fill='none' stroke='rgba(128,128,128,0.18)' stroke-width='12'/>
-                        <circle cx='58' cy='58' r='48' fill='none' stroke='{colour}' stroke-width='12' stroke-linecap='round'
-                            stroke-dasharray='{circumference:.2f}' stroke-dashoffset='{offset:.2f}' transform='rotate(-90 58 58)'/>
-                    </svg>
-                    <div style='position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;'>
-                        <div style='font-size:2rem; font-weight:850; color:{colour}; line-height:1;'>{score}</div>
-                        <div style='font-size:0.86rem; opacity:0.82;'>/100</div>
-                    </div>
+        <div class='kh-health-compact'>
+            <div class='kh-health-row'>
+                <div>
+                    <div class='kh-health-title'>Today's Health Score</div>
+                    <div class='kh-health-message'>{html_escape(message)}</div>
                 </div>
-                <div style='flex:1; min-width:210px;'>
-                    <div style='display:flex; align-items:center; gap:0.45rem; font-size:1.35rem; font-weight:850; color:{colour};'>
-                        <span style='font-size:1.25rem; line-height:1;'>🏆</span>
-                        <span>Today's Health Score</span>
-                    </div>
-                    <div style='font-size:0.98rem; opacity:0.82; margin-top:0.2rem;'>{html_escape(message)}</div>
-                    <div style='margin-top:0.65rem;'>{''.join(pills)}</div>
-                </div>
+                <div class='kh-health-score-number' style='color:{colour};'>{score}/100</div>
             </div>
+            <div class='kh-progress-line' style='margin-top:0.36rem;'>
+                <div class='kh-progress-fill' style='width:{max(0, min(100, score))}%; background:{colour};'></div>
+            </div>
+            <div style='margin-top:0.22rem;'>{''.join(pills)}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -4387,7 +3866,7 @@ def copy_button(label, text_to_copy, key):
         f"""
         <button id="{key}" style="
             border:0; border-radius:999px; padding:0.62rem 1rem; cursor:pointer;
-            background:#2F6CC4; color:white; font-weight:800; font-size:0.95rem;
+            background:#1F5E4B; color:white; font-weight:800; font-size:0.95rem;
         "></button>
         <script>
         (function() {{
@@ -5011,7 +4490,7 @@ tabs = st.tabs(
 # ============================================================
 
 with tabs[0]:
-    st.subheader("Summary of Today")
+    st.subheader("Today")
 
     if latest_data_day != today_start:
         st.caption(
@@ -5077,6 +4556,47 @@ with tabs[0]:
     ]
     render_kpi_grid(kpi_cards)
 
+    render_kpi_grid(
+        [
+            {
+                "title": "Protein",
+                "value": fmt_number(today_protein, suffix="g"),
+                "sub": f"{goals.get('protein_g', 135):,.0f}g goal",
+                "footer": goal_status_text(today_protein, goals.get("protein_g", 135), unit="g", higher_is_better=True, below_word="to go"),
+                "progress": progress_percent(today_protein, goals.get("protein_g", 135), True),
+                "color": css_color("protein"),
+            },
+            {
+                "title": "Carbs",
+                "value": fmt_number(today_carbs, suffix="g"),
+                "sub": "Today",
+                "footer": "Macro tracking",
+                "progress": 0,
+                "show_progress": False,
+                "color": "#5D9B73",
+            },
+            {
+                "title": "Fat",
+                "value": fmt_number(today_fat, suffix="g"),
+                "sub": "Today",
+                "footer": "Macro tracking",
+                "progress": 0,
+                "show_progress": False,
+                "color": "#B87918",
+            },
+            {
+                "title": "Fluid",
+                "value": fmt_water(today_water),
+                "sub": f"{goals.get('fluids_l', 2):.1f}L goal",
+                "footer": goal_status_text((today_water or 0) / 1000, goals.get("fluids_l", 2), unit="L", higher_is_better=True, below_word="to go"),
+                "progress": progress_percent((today_water or 0) / 1000, goals.get("fluids_l", 2), True),
+                "color": css_color("blue"),
+            },
+        ]
+    )
+
+    render_food_today_card(today_food, today_calories)
+
     today_glance_end = latest_data_day
     today_glance_start = latest_data_day - timedelta(days=6)
 
@@ -5085,7 +4605,7 @@ with tabs[0]:
     today_glance_food_daily = filter_by_date(food_daily, today_glance_start, today_glance_end)
     today_glance_weight = filter_by_date(weight_df, today_glance_start, today_glance_end)
 
-    with st.container(border=True):
+    with st.expander("Charts - Today at a Glance", expanded=False):
         render_section_header("Today at a Glance")
 
         g1, g2 = st.columns(2)
@@ -5143,26 +4663,20 @@ with tabs[0]:
 
     st.divider()
 
-    st.markdown(f"### Sleep {dashboard_date_label(latest_data_day)}, Midnight to Midnight")
-    sleep_timeline_chart(
-        today_sleep,
-        "24 Hour Sleep Timeline",
-        chart_key="today_sleep_timeline",
-    )
+    with st.expander(f"Sleep timeline - {dashboard_date_label(latest_data_day)}", expanded=False):
+        sleep_timeline_chart(
+            today_sleep,
+            "24 Hour Sleep Timeline",
+            chart_key="today_sleep_timeline",
+        )
 
-    st.divider()
-
-    st.markdown(f"### Protein, Carbs and Fat {dashboard_date_label(latest_data_day)}")
-    macro_pie_chart(
-        today_protein,
-        today_carbs,
-        today_fat,
-        chart_key="today_macro_pie",
-    )
-
-    st.divider()
-
-    render_food_today_card(today_food, today_calories)
+    with st.expander(f"Macro split - {dashboard_date_label(latest_data_day)}", expanded=False):
+        macro_pie_chart(
+            today_protein,
+            today_carbs,
+            today_fat,
+            chart_key="today_macro_pie",
+        )
 
     st.divider()
 
