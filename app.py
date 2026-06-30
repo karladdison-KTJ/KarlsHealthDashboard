@@ -92,7 +92,31 @@ def apply_mobile_compact_css():
     }
 
     .element-container {
-        margin-bottom: 0.25rem !important;
+        margin-bottom: 0.18rem !important;
+    }
+
+    .compact-goal-card {
+        border: 1px solid rgba(128,128,128,0.20);
+        border-radius: 0.65rem;
+        padding: 0.28rem 0.45rem 0.05rem 0.45rem;
+        margin: 0.05rem 0 0.05rem 0;
+        background: rgba(255,255,255,0.66);
+    }
+
+    .compact-goal-top {
+        font-size: 0.86rem;
+        line-height: 1.2;
+    }
+
+    .compact-goal-bottom {
+        margin-top: -0.55rem;
+        margin-bottom: 0.18rem;
+        font-size: 0.76rem;
+        line-height: 1.1;
+    }
+
+    .stProgress > div > div > div > div {
+        height: 0.38rem !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -551,14 +575,14 @@ st.markdown(
     """
     <style>
         .block-container {
-            padding-top: 1.1rem !important;
-            padding-bottom: 2rem !important;
-            padding-left: 1.15rem !important;
-            padding-right: 1.15rem !important;
+            padding-top: 0.45rem !important;
+            padding-bottom: 0.75rem !important;
+            padding-left: 0.45rem !important;
+            padding-right: 0.45rem !important;
         }
 
         h1 {
-            font-size: clamp(2.05rem, 8vw, 3rem) !important;
+            font-size: clamp(1.35rem, 5.5vw, 2rem) !important;
             line-height: 1.04 !important;
             margin-bottom: 0.35rem !important;
         }
@@ -569,8 +593,8 @@ st.markdown(
             margin-bottom: 0.45rem !important;
         }
 
-        h2 { font-size: clamp(1.55rem, 6vw, 2.1rem) !important; }
-        h3 { font-size: clamp(1.2rem, 4.8vw, 1.55rem) !important; }
+        h2 { font-size: clamp(1.05rem, 4.5vw, 1.35rem) !important; }
+        h3 { font-size: clamp(0.95rem, 3.8vw, 1.15rem) !important; }
 
         div[data-testid="stMetric"] {
             padding: 0.15rem 0 !important;
@@ -581,7 +605,7 @@ st.markdown(
         }
 
         div[data-testid="stMetric"] [data-testid="stMetricValue"] {
-            font-size: clamp(1.55rem, 7vw, 2.2rem) !important;
+            font-size: clamp(1.05rem, 4.8vw, 1.45rem) !important;
             line-height: 1.05 !important;
         }
 
@@ -591,12 +615,12 @@ st.markdown(
         }
 
         div[data-testid="stHorizontalBlock"] {
-            gap: 0.8rem !important;
+            gap: 0.35rem !important;
         }
 
         hr {
-            margin-top: 0.8rem !important;
-            margin-bottom: 0.8rem !important;
+            margin-top: 0.35rem !important;
+            margin-bottom: 0.35rem !important;
         }
 
         div[data-testid="stDataFrame"] {
@@ -613,10 +637,10 @@ st.markdown(
         .kh-card {
             border: 1px solid rgba(128,128,128,0.18);
             border-radius: 18px;
-            padding: 1rem;
+            padding: 0.5rem;
             background: rgba(255,255,255,0.70);
-            box-shadow: 0 8px 28px rgba(20, 40, 80, 0.05);
-            margin-bottom: 0.85rem;
+            box-shadow: 0 4px 16px rgba(20, 40, 80, 0.04);
+            margin-bottom: 0.35rem;
         }
 
         .kh-health-score {
@@ -627,46 +651,46 @@ st.markdown(
         .kh-kpi-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 0.8rem;
-            margin: 0.85rem 0 1rem 0;
+            gap: 0.35rem;
+            margin: 0.35rem 0 0.45rem 0;
         }
 
         .kh-kpi {
             border-radius: 18px;
-            padding: 0.95rem;
+            padding: 0.45rem;
             border: 1px solid rgba(128,128,128,0.18);
             background: rgba(255,255,255,0.72);
-            min-height: 138px;
+            min-height: 72px;
         }
 
         .kh-kpi-title {
             font-size: 0.95rem;
             font-weight: 750;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.2rem;
             display: flex;
             align-items: center;
             gap: 0.4rem;
         }
 
         .kh-kpi-value {
-            font-size: clamp(1.75rem, 7vw, 2.55rem);
+            font-size: clamp(1.05rem, 5vw, 1.45rem);
             line-height: 1.0;
             font-weight: 800;
-            margin-bottom: 0.45rem;
+            margin-bottom: 0.18rem;
         }
 
         .kh-kpi-sub {
             font-size: 0.82rem;
             opacity: 0.78;
-            margin-bottom: 0.45rem;
+            margin-bottom: 0.18rem;
         }
 
         .kh-progress {
-            height: 8px;
+            height: 6px;
             border-radius: 999px;
             background: rgba(128,128,128,0.18);
             overflow: hidden;
-            margin: 0.45rem 0;
+            margin: 0.2rem 0;
         }
 
         .kh-progress-fill {
@@ -691,7 +715,7 @@ st.markdown(
             justify-content: space-between;
             align-items: center;
             gap: 0.8rem;
-            padding: 0.72rem 0;
+            padding: 0.35rem 0;
             border-bottom: 1px solid rgba(128,128,128,0.14);
         }
 
@@ -715,18 +739,18 @@ st.markdown(
             }
 
             .kh-kpi {
-                min-height: 116px;
+                min-height: 64px;
             }
         }
 
         @media (max-width: 700px) {
             .block-container {
-                padding-left: 1rem !important;
-                padding-right: 1rem !important;
+                padding-left: 0.45rem !important;
+                padding-right: 0.45rem !important;
             }
 
             h1 {
-                font-size: 2.25rem !important;
+                font-size: 1.35rem !important;
             }
 
             .stMarkdown p, .stCaptionContainer {
@@ -3133,11 +3157,11 @@ handle_withings_callback()
 def render_app_header():
     icon_exists = os.path.exists(K_HEALTH_ICON_FILE)
 
-    left, right = st.columns([0.16, 0.84])
+    left, right = st.columns([0.12, 0.88])
 
     with left:
         if icon_exists:
-            st.image(K_HEALTH_ICON_FILE, width=66)
+            st.image(K_HEALTH_ICON_FILE, width=44)
         else:
             st.markdown("<div style='font-size:2.3rem; line-height:1;'>🩺</div>", unsafe_allow_html=True)
 
@@ -3145,18 +3169,18 @@ def render_app_header():
         st.markdown(
             f"""
             <div style="display:flex; align-items:center; gap:0.55rem; flex-wrap:wrap; margin-bottom:0.1rem;">
-                <div style="font-size:clamp(1.75rem, 6.6vw, 2.7rem); font-weight:850; line-height:0.98;">{APP_TITLE}</div>
+                <div style="font-size:clamp(1.25rem, 5.4vw, 1.9rem); font-weight:850; line-height:0.98;">{APP_TITLE}</div>
                 <div style="
                     background: linear-gradient(135deg, #63B892, #2F6CC4);
                     color: white;
                     border-radius: 999px;
-                    padding: 0.22rem 0.55rem;
-                    font-size:0.78rem;
+                    padding: 0.12rem 0.38rem;
+                    font-size:0.68rem;
                     font-weight:850;
                     letter-spacing:0.02rem;
                 ">{APP_VERSION}</div>
             </div>
-            <div style="font-size:0.88rem; opacity:0.74; line-height:1.35;">
+            <div style="font-size:0.75rem; opacity:0.74; line-height:1.35;">
                 {APP_DESCRIPTION}<br>
                 🗓️ {APP_REVIEW_DISPLAY} · Build {APP_BUILD}
             </div>
@@ -3411,20 +3435,20 @@ def metric_color_key(value_col):
 
 
 def progress_percent(value, target, higher_is_better=True):
+    """
+    Progress bars show how much of the goal has been reached/used.
+
+    Important: calories are a daily budget, but the progress bar should still
+    show intake used. For example 397 / 1800 = 22%, not 100%.
+    The higher_is_better argument is kept so existing calls do not break.
+    """
     if value is None or pd.isna(value) or target is None or pd.isna(target) or float(target) <= 0:
         return 0
 
     value = max(0.0, float(value))
     target = float(target)
 
-    if higher_is_better:
-        return max(0, min(100, int(round((value / target) * 100))))
-
-    if value <= target:
-        return 100
-
-    over_ratio = max(0.0, (value - target) / target)
-    return max(0, min(100, int(round(100 - (over_ratio * 100)))))
+    return max(0, min(100, int(round((value / target) * 100))))
 
 
 def goal_status_text(value, target, unit="", higher_is_better=True, below_word="to go", above_word="over"):
@@ -3489,15 +3513,21 @@ def weight_change_friendly(diff_lb):
 
 
 def render_kpi_grid(cards):
-    """Render KPI cards using Streamlit-native components only.
+    """
+    Compact mobile KPI cards.
 
-    No custom HTML is used here. This prevents Streamlit Cloud, browser
-    print/PDF views, and mobile browsers from showing raw <div> text.
+    Layout example:
+    Calories = 397 (goal 1800)
+    [progress line]
+    22% (1,403 remaining)
+
+    This uses the card progress value directly, so calories now display
+    consumed percentage rather than incorrectly showing 100% when under budget.
     """
     if not cards:
         return
 
-    columns = st.columns(min(4, len(cards)))
+    columns = st.columns(min(2, len(cards)))
 
     for idx, card in enumerate(cards):
         with columns[idx % len(columns)]:
@@ -3505,22 +3535,36 @@ def render_kpi_grid(cards):
             value = str(card.get("value", "No data"))
             sub = str(card.get("sub", ""))
             footer = str(card.get("footer", ""))
-            icon = str(card.get("icon", ""))
             pct = max(0, min(100, safe_int(card.get("progress", 0), 0)))
+            show_progress = bool(card.get("show_progress", True))
 
-            with st.container(border=True):
-                st.caption(title)
-                st.markdown(f"### {value}")
+            line = f"**{html_escape(title)} = {html_escape(value)}**"
+            if sub:
+                line += f" <span class='kh-muted'>({html_escape(sub)})</span>"
 
-                if sub:
-                    st.caption(sub)
+            st.markdown(
+                f"""
+                <div class="compact-goal-card">
+                    <div class="compact-goal-top">{line}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-                if card.get("show_progress", True):
-                    st.progress(pct)
-                    st.caption(f"{pct}%")
+            if show_progress:
+                st.progress(pct)
 
+                bottom = f"**{pct}%**"
                 if footer:
-                    st.caption(footer)
+                    bottom += f" <span class='kh-muted'>({html_escape(footer)})</span>"
+
+                st.markdown(
+                    f"<div class='compact-goal-bottom'>{bottom}</div>",
+                    unsafe_allow_html=True,
+                )
+            elif footer:
+                st.caption(footer)
+
 
 
 def calculate_health_score(goals, sleep_hours, steps, calories, protein, latest_weight_kg, weight_range):
