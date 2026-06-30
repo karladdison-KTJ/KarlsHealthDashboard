@@ -50,10 +50,10 @@ st.set_page_config(
 
 APP_TITLE = "Karl's Health Dashboard"
 APP_LOGIN_ID = "K Health"
-APP_VERSION = "v2.2"
-APP_REVIEW_DATE = "30-06-26"
+APP_VERSION = "v2.2.1"
+APP_REVIEW_DATE = "30-06-26 01:05"
 APP_REVIEW_DISPLAY = "Reviewed Tue 30 Jun 2026"
-APP_BUILD = "20260630-0015"
+APP_BUILD = "20260630-0105"
 APP_DESCRIPTION = "Bringing together Withings and MyNetDiary Pro"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -3421,40 +3421,38 @@ def weight_change_friendly(diff_lb):
 
 
 def render_kpi_grid(cards):
-    html_parts = ["<div class='kh-kpi-grid'>"]
+    """Render KPI cards using Streamlit-native components only.
 
-    for card in cards:
-        title = html_escape(str(card.get("title", "")))
-        value = html_escape(str(card.get("value", "No data")))
-        sub = html_escape(str(card.get("sub", "")))
-        footer = html_escape(str(card.get("footer", "")))
-        icon = html_escape(str(card.get("icon", "")))
-        color = card.get("color", css_color("text"))
-        bg = card.get("bg", "rgba(255,255,255,0.72)")
-        pct = max(0, min(100, safe_int(card.get("progress", 0), 0)))
+    No custom HTML is used here. This prevents Streamlit Cloud, browser
+    print/PDF views, and mobile browsers from showing raw <div> text.
+    """
+    if not cards:
+        return
 
-        progress_html = ""
-        if card.get("show_progress", True):
-            progress_html = f"""
-                <div class='kh-progress'>
-                    <div class='kh-progress-fill' style='width:{pct}%; background:{color};'></div>
-                </div>
-            """
+    columns = st.columns(min(4, len(cards)))
 
-        html_parts.append(
-            f"""
-            <div class='kh-kpi' style='border-color:{color}33; background:{bg};'>
-                <div class='kh-kpi-title' style='color:{color};'><span>{icon}</span><span>{title}</span></div>
-                <div class='kh-kpi-value'>{value}</div>
-                <div class='kh-kpi-sub'>{sub}</div>
-                {progress_html}
-                <div style='font-size:0.84rem; font-weight:700; color:{color}; margin-top:0.35rem;'>{footer}</div>
-            </div>
-            """
-        )
+    for idx, card in enumerate(cards):
+        with columns[idx % len(columns)]:
+            title = str(card.get("title", ""))
+            value = str(card.get("value", "No data"))
+            sub = str(card.get("sub", ""))
+            footer = str(card.get("footer", ""))
+            icon = str(card.get("icon", ""))
+            pct = max(0, min(100, safe_int(card.get("progress", 0), 0)))
 
-    html_parts.append("</div>")
-    st.markdown("".join(html_parts), unsafe_allow_html=True)
+            with st.container(border=True):
+                st.caption(f"{icon} {title}".strip())
+                st.markdown(f"### {value}")
+
+                if sub:
+                    st.caption(sub)
+
+                if card.get("show_progress", True):
+                    st.progress(pct)
+                    st.caption(f"{pct}%")
+
+                if footer:
+                    st.caption(footer)
 
 
 def calculate_health_score(goals, sleep_hours, steps, calories, protein, latest_weight_kg, weight_range):
