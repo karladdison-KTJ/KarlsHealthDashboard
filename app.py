@@ -50,10 +50,10 @@ st.set_page_config(
 
 APP_TITLE = "Karl's Health Dashboard"
 APP_LOGIN_ID = "K Health"
-APP_VERSION = "v2.2.1"
-APP_REVIEW_DATE = "30-06-26 01:05"
+APP_VERSION = "v2.2.2"
+APP_REVIEW_DATE = "30-06-26 01:25"
 APP_REVIEW_DISPLAY = "Reviewed Tue 30 Jun 2026"
-APP_BUILD = "20260630-0105"
+APP_BUILD = "20260630-0125"
 APP_DESCRIPTION = "Bringing together Withings and MyNetDiary Pro"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -4025,7 +4025,7 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
             y=value_col,
             markers=True,
             title=title,
-            labels={"date_label": "", value_col: friendly_axis_label(value_col)},
+            labels={"date_label": "", value_col: ""},
         )
         fig.update_traces(line_color=metric_colour, marker_color=metric_colour, line_width=3, marker_size=8)
     else:
@@ -4037,7 +4037,7 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
                 color="status",
                 color_discrete_map=color_map,
                 title=title,
-                labels={"date_label": "", value_col: friendly_axis_label(value_col)},
+                labels={"date_label": "", value_col: ""},
             )
             fig.update_layout(showlegend=False)
         elif chart_type == "line":
@@ -4047,7 +4047,7 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
                 y=value_col,
                 markers=True,
                 title=title,
-                labels={"date_label": "", value_col: friendly_axis_label(value_col)},
+                labels={"date_label": "", value_col: ""},
             )
             fig.update_traces(line_color=metric_colour, marker_color=metric_colour, line_width=3, marker_size=8)
         else:
@@ -4056,7 +4056,7 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
                 x="date_label",
                 y=value_col,
                 title=title,
-                labels={"date_label": "", value_col: friendly_axis_label(value_col)},
+                labels={"date_label": "", value_col: ""},
             )
             fig.update_traces(marker_color=metric_colour)
 
@@ -4070,7 +4070,7 @@ def daily_total_chart(df, value_col, title, chart_key, chart_type="bar", goal_va
         )
 
     fig.update_xaxes(title_text=None)
-    fig.update_yaxes(title_text=friendly_axis_label(value_col))
+    fig.update_yaxes(title_text=None)
     fig.update_layout(height=330, margin=dict(l=8, r=8, t=42, b=8), bargap=0.20)
     st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG, key=chart_key)
 
@@ -4133,6 +4133,40 @@ history_avg_water = mean_for_range(history_food_daily, "fluid_ml")
 if latest_weight_kg is None:
     latest_weight_kg = latest_value_for_metric(weight_df, "weight_kg")
 
+# If today has not synced yet, show the newest complete day instead of an empty dashboard.
+latest_data_day = today_start
+_today_has_any_core_data = any(
+    value is not None and not pd.isna(value)
+    for value in [today_steps, today_sleep_hours, today_calories]
+)
+
+if not _today_has_any_core_data:
+    candidate_dates = []
+
+    for source_df in [activity_df, sleep_df, food_daily]:
+        if source_df is not None and not source_df.empty and "date" in source_df.columns:
+            valid_dates = pd.Series(source_df["date"]).dropna()
+            if not valid_dates.empty:
+                candidate_dates.append(max(valid_dates))
+
+    if candidate_dates:
+        latest_data_day = max(candidate_dates)
+
+        if latest_data_day != today_start:
+            today_sleep = filter_by_date(sleep_df, latest_data_day, latest_data_day)
+            today_activity = filter_by_date(activity_df, latest_data_day, latest_data_day)
+            today_food = filter_by_date(food_df, latest_data_day, latest_data_day)
+            today_food_daily = filter_by_date(food_daily, latest_data_day, latest_data_day)
+            today_weight = filter_by_date(weight_df, latest_data_day, latest_data_day)
+
+            today_steps = sum_for_day(activity_df, latest_data_day, "steps")
+            today_sleep_hours = sum_for_day(sleep_df, latest_data_day, "sleep_hours")
+            today_calories = sum_for_day(food_daily, latest_data_day, "calories")
+            today_protein = sum_for_day(food_daily, latest_data_day, "protein_g")
+            today_carbs = sum_for_day(food_daily, latest_data_day, "carbs_g")
+            today_fat = sum_for_day(food_daily, latest_data_day, "fat_g")
+            today_water = sum_for_day(food_daily, latest_data_day, "fluid_ml")
+
 
 # ============================================================
 # Tabs
@@ -4157,7 +4191,13 @@ tabs = st.tabs(
 
 with tabs[0]:
     st.subheader("Summary of Today")
-    st.caption(f"Today is {dashboard_date_label(today_start)}.")
+
+    if latest_data_day != today_start:
+        st.caption(
+            f"Today is {dashboard_date_label(today_start)}. Showing latest complete day: {dashboard_date_label(latest_data_day)}."
+        )
+    else:
+        st.caption(f"Today is {dashboard_date_label(today_start)}.")
 
     health_score, health_score_parts = calculate_health_score(
         goals,
@@ -4272,7 +4312,7 @@ with tabs[0]:
 
     st.divider()
 
-    st.markdown("### Sleep Today, Midnight to Midnight")
+    st.markdown(f"### Sleep {dashboard_date_label(latest_data_day)}, Midnight to Midnight")
     sleep_timeline_chart(
         today_sleep,
         "24 Hour Sleep Timeline",
@@ -4281,7 +4321,7 @@ with tabs[0]:
 
     st.divider()
 
-    st.markdown("### Protein, Carbs and Fat Today")
+    st.markdown(f"### Protein, Carbs and Fat {dashboard_date_label(latest_data_day)}")
     macro_pie_chart(
         today_protein,
         today_carbs,
